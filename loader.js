@@ -8,29 +8,48 @@ function loadModweebChat(options = {}) {
         ...options
     };
 
-    if (window.modweebChatLoaded) return;
+    // منع التحميل المزدوج
+    if (window.modweebChatLoaded) {
+        console.log('Modweeb Chat is already loaded');
+        return;
+    }
     window.modweebChatLoaded = true;
 
-    // تحميل CSS
+    // 1. تحميل CSS
     const cssLink = document.createElement('link');
     cssLink.rel = 'stylesheet';
     cssLink.href = config.cssUrl;
-    cssLink.onerror = () => console.error('Failed to load chat CSS');
+    cssLink.onerror = () => console.error('❌ Failed to load Modweeb Chat CSS');
     document.head.appendChild(cssLink);
 
-    // إضافة HTML
-    const container = document.createElement('div');
-    container.id = 'modweeb-global-container';
-    document.body.appendChild(container);
+    // 2. إنشاء العنصر الحاوي للدردشة
+    const chatContainer = document.createElement('div');
+    chatContainer.id = 'modweeb-chat-root';
+    chatContainer.setAttribute('data-theme', config.theme);
+    chatContainer.setAttribute('data-position', config.position);
+    document.body.appendChild(chatContainer);
 
-    // تحميل JavaScript
+    // 3. تحميل JavaScript
     const script = document.createElement('script');
     script.src = config.jsUrl;
-    script.onload = () => console.log('Modweeb chat loaded successfully');
-    script.onerror = () => console.error('Failed to load chat script');
+    script.onload = () => {
+        console.log('✅ Modweeb Chat loaded successfully');
+        
+        // تهيئة الدردشة بعد تحميل السكريبت
+        if (window.initModweebChat) {
+            window.initModweebChat(config);
+        }
+    };
+    script.onerror = () => console.error('❌ Failed to load Modweeb Chat script');
     document.body.appendChild(script);
 
     return true;
 }
 
+// جعل الدالة متاحة globally
 window.loadModweebChat = loadModweebChat;
+
+// التحميل التلقائي إذا كانت هناك إعدادات مسبقة
+if (window.modweebChatAutoLoad) {
+    loadModweebChat(window.modweebChatAutoLoad);
+}
