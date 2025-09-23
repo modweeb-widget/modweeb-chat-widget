@@ -1,4 +1,7 @@
 function modweebChat(options) {
+    function decryptKey(encrypted) {
+        return atob(encrypted); // atob() هي دالة فك تشفير Base64
+    }
     const HUGGING_FACE_TOKEN = options.config.hfToken;
     const HUGGING_FACE_MODEL = options.config.hfModel;
     const USAGE_KEY="modweebChatUsage_v1",HISTORY_KEY="modweebChatHistory_v1",DEFAULT_DAILY_LIMIT=25,DEV_FLAG_KEY="modweebDevUnlimited_v1";
@@ -36,3 +39,4 @@ function modweebChat(options) {
     function adjustForKeyboard(){let e=window.visualViewport.height,t=window.innerHeight;t-e>150?(document.getElementById("modweeb-chat-container").style.bottom="10px",document.getElementById("modweeb-chat-btn").style.bottom="10px"):(document.getElementById("modweeb-chat-container").style.bottom="142px",document.getElementById("modweeb-chat-btn").style.bottom="88px")}
     head.addEventListener("click",function(e){if(headerClickCount++,headerClickTimer&&clearTimeout(headerClickTimer),headerClickTimer=setTimeout(()=>{headerClickCount=0},4e3),headerClickCount>=5){headerClickCount=0;let t="1"===localStorage.getItem(DEV_FLAG_KEY);t?(localStorage.removeItem(DEV_FLAG_KEY),showStatus("وضع المطور معطل")):(localStorage.setItem(DEV_FLAG_KEY,"1"),showStatus("وضع المطور مفعل: غير محدود")),refreshUsageUI()}}),document.getElementById("modweeb-messages").style.minHeight="60px",window.visualViewport.addEventListener("resize",adjustForKeyboard),window.visualViewport.addEventListener("scroll",adjustForKeyboard),document.addEventListener("click",function(e){let t=document.getElementById("modweeb-chat-container"),n=document.getElementById("modweeb-chat-btn");"flex"!==t.style.display||t.contains(e.target)||n.contains(e.target)||(t.style.display="none")});
 }
+
