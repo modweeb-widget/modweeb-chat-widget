@@ -1,17 +1,20 @@
 <!DOCTYPE html>
-<html>
+<html lang="ar">
 <head>
-    <title>Test Modweeb Chat</title>
+    <meta charset="UTF-8">
+    <title>اختبار دردشة Modweeb</title>
 </head>
 <body>
-    <h1>Test Page</h1>
-    
-    <!-- كود الدردشة المختصر -->
-    <script src="dist/modweeb-loader.min.js"></script>
+    <h1>صفحة اختبار الدردشة</h1>
+    <p>يجب أن تظهر أيقونة الدردشة في الزاوية اليمنى السفلى</p>
+
+    <!-- الكود المختصر النهائي -->
+    <script src="https://cdn.jsdelivr.net/gh/modweeb-widget/modweeb-chat-widget@main/dist/modweeb-loader.min.js"></script>
     <script>
         loadModweebChat({
-            dailyLimit: 25,
-            theme: 'light'
+            dailyLimit: 30,
+            theme: 'light',
+            position: 'bottom-right'
         });
     </script>
 </body>
