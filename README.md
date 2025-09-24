@@ -22,23 +22,24 @@
 * أنشئ مفتاح API جديداً بنوع `Read`.
 * انسخ المفتاح.
 
-#### 2. تشفير المفتاح
-
-لأغراض الأمان، يفضل عدم وضع المفتاح الأصلي مباشرة في الكود. يمكنك استخدام أداة تشفير Base64.
-* استخدم أي أداة تشفير Base64 عبر الإنترنت، أو أنشئ ملف `encrypt-tool.html` ثم الصق مفتاحك وقم بتشفيره.
-* احفظ المفتاح المشفر.
-
-#### 3. إعداد GitHub Pages
+#### 2. إعداد GitHub Pages
 
 * قم بإنشاء مستودع GitHub جديد.
-* ارفع ملفي `modweeb-chat.js` و `modweeb-chat.css` إلى المستودع.
+* ارفع ملفات `modweeb-chat.js`، `modweeb-chat.css`، و **`encrypt-tool.html`** إلى المستودع.
 * اذهب إلى `Settings` > `Pages` واختر الفرع الرئيسي (`main`) كمصدر للنشر.
+
+#### 3. تشفير المفتاح
+
+* افتح ملف **`encrypt-tool.html`** مباشرة من مستودعك على GitHub Pages.
+    * مثال: `https://yourusername.github.io/your-repo-name/encrypt-tool.html`
+* الصق مفتاح API الأصلي في الأداة، ثم اضغط على "تشفير".
+* انسخ المفتاح المشفر.
 
 #### 4. تضمين الكود في موقعك
 
 * انسخ الكود التالي.
 * الصقه في قالب موقعك (يفضل قبل وسم `</body>` لضمان سرعة التحميل).
-* **استبدل `'ضع_المفتاح_المشفر_هنا'` بالمفتاح المشفر الذي حصلت عليه في الخطوة 2.**
+* **استبدل `'ضع_المفتاح_المشفر_هنا'` بالمفتاح المشفر الذي حصلت عليه في الخطوة السابقة.**
 
 ```html
 <link rel="stylesheet" href="[https://cdn.jsdelivr.net/gh/YourUsername/YourRepo/modweeb-chat.css](https://cdn.jsdelivr.net/gh/YourUsername/YourRepo/modweeb-chat.css)" />
