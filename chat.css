@@ -451,3 +451,39 @@
         box-sizing: border-box !important;
     }
 }
+/* هذا يضمن أن حاوية الدردشة (النموذج الكامل) تأخذ أقصى ارتفاع متاح */
+#modweeb-chat-container {
+    display: flex; /* تأكد من أنها flex */
+    flex-direction: column; /* الرسائل تأتي من الأعلى للأسفل */
+    height: 100%; /* يجب أن تأخذ الارتفاع الكامل للعنصر الأب */
+    max-height: 500px; /* يمكن تحديد أقصى ارتفاع هنا */
+}
+
+/* هذا هو أهم تعديل: يضمن أن حاوية الرسائل قابلة للتمرير وتنمو */
+#modweeb-messages {
+    flex-grow: 1; /* تسمح للحاوية بأن تملأ المساحة المتبقية */
+    overflow-y: auto; /* يجعل التمرير العمودي يعمل */
+    padding: 10px;
+    /* تحديد ارتفاع أدنى لضمان عدم اختفائها */
+    min-height: 60px; 
+    /* هذا مهم لبيئة الجوال: السماح بالتمرير داخل العناصر الفرعية */
+    -webkit-overflow-scrolling: touch; 
+}
+
+/* تعديل وضع الجوال لـ #modweeb-widget-container */
+@media (max-width: 600px) {
+    #modweeb-widget-container {
+        /* عند فتح الكيبورد، يحافظ هذا على الحجم المناسب */
+        height: calc(100vh - 80px); /* مثلاً، ارتفاع الشاشة ناقص شريط علوي */
+        width: 100%;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        /* هذا السطر قد يكون له علاقة بالسلوك التفاعلي في chat.js */
+        /* يفضل أن يظل السلوك التفاعلي لـ 'bottom' في chat.js فقط */
+    }
+    #modweeb-chat-container {
+        max-height: 100%; /* لا تحدد أقصى ارتفاع ثابت هنا */
+    }
+}
+
