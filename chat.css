@@ -1,24 +1,3 @@
-:root {
-    --primaryC: #2563eb;
-    --primaryL: #3b82f6;
-    --primaryD: #1d4ed8;
-    --contentB: #ffffff;
-    --contentBa: #f4f8ff;
-    --contentD: #374151;
-    --borderC: #e3e7ef;
-    --shadow: rgba(0, 0, 0, 0.2);
-    --linkC: #2563eb;
-}
-
-/* إعدادات خطوط الأداة للتجنب التعارض مع الموقع المضيف */
-#modweeb-widget-container * {
-    box-sizing: border-box;
-    font-family: Arial, sans-serif;
-    line-height: 1.4;
-    direction: rtl;
-    text-align: right;
-}
-
 /* زر الفتح العائم */
 .modweeb-chat-btn {
     position: fixed;
@@ -334,3 +313,4 @@
         box-shadow: none;
     }
 }
+
