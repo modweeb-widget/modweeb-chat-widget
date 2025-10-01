@@ -447,6 +447,93 @@
         bottom: 88px !important;
     }
     
+    /* إصلاح مشكلة التمرير عند فتح الكيبورد */
+#modweeb-messages {
+    flex-grow: 1; 
+    overflow-y: auto; 
+    padding: 10px;
+    min-height: 60px; 
+    
+    /* هذا هو الحل لمشكلة التمرير في iOS والأجهزة التي تعمل باللمس */
+    -webkit-overflow-scrolling: touch; 
+}
+
+/* حل بديل: إيقاف التمرير الكلي للصفحة عند لمس الدردشة (قد يكون قويًا) */
+#modweeb-chat-container {
+    overscroll-behavior: contain;
+}
+    
+    .modweeb-suggestions {
+    display: flex; /* ترتيب الاقتراحات جنباً إلى جنب */
+    gap: 10px; /* مسافة بين الأزرار */
+    padding: 10px;
+    border-top: 1px solid var(--borderC, #e3e7ef); /* خط فاصل علوي */
+    border-bottom: 1px solid var(--borderC, #e3e7ef); /* خط فاصل سفلي */
+    
+    overflow-x: auto; /* تمكين التمرير الأفقي */
+    overflow-y: hidden; /* إخفاء التمرير العمودي */
+    white-space: nowrap; /* منع الأزرار من النزول لسطر جديد */
+    
+    /* تحسين التمرير باللمس */
+    -webkit-overflow-scrolling: touch; 
+}
+
+.modweeb-suggestion-btn {
+    flex-shrink: 0; /* منع تصغير الأزرار عند ضيق المساحة */
+    /* أضف تصميم الأزرار هنا (خلفية، حدود، إلخ.) */
+    background: var(--contentB, #f0f4f8);
+    border: 1px solid var(--borderC, #d1d5db);
+    padding: 6px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+/* إعداد حاوية الرسالة للموضع المطلق */
+.modweeb-msg-user, 
+.modweeb-msg-ai {
+    position: relative; /* يجب أن يكون الأب موضع نسبي */
+    /* التأكد من أن الفقاعة لا تغطي الأزرار */
+    z-index: 1; 
+}
+
+/* تصميم الحاوية الجديدة للأزرار (العنصر الأب) */
+.modweeb-controls-top {
+    position: absolute;
+    top: -5px; /* رفع الأزرار قليلاً فوق الفقاعة */
+    z-index: 10; /* ضمان ظهورها فوق كل شيء */
+    /* وضع أزرار المستخدم يمين الفقاعة */
+    right: 5px; 
+}
+
+.modweeb-msg-ai .modweeb-controls-top {
+    /* وضع أزرار الـ AI يسار الفقاعة */
+    left: 5px; 
+    right: auto;
+}
+
+/* تصميم الأزرار نفسها */
+.modweeb-controls-top button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background-color: var(--primaryC, #2563eb); /* خلفية بارزة */
+    border: 1px solid var(--primaryL, #ffffff); 
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* ضلال بسيط */
+    color: #ffffff; /* لون أيقونة النسخ/التعديل */
+}
+/* أيقونة SVG داخل الأزرار */
+.modweeb-controls-top button svg {
+    width: 16px; 
+    height: 16px;
+    stroke: currentColor;
+}
+
+
     #modweeb-widget-container * {
         box-sizing: border-box !important;
     }
