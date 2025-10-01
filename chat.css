@@ -1,4 +1,5 @@
 /* أنماط أداة الدردشة الذكية - متوافقة مع نظام ModWeeb الموحد */
+/* --- أنماط الزر العائم --- */
 .modweeb-chat-btn {
     position: fixed;
     z-index: 9999;
@@ -58,8 +59,24 @@
     height: 14px;
 }
 
-#modweeb-chat-container {
+/* --- أنماط الخلفية والنافذة (Backdrop) --- */
+/* الحاوية الخارجية الآن تعمل كـ Backdrop */
+#modweeb-widget-container {
     position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9998; /* أسفل النافذة العائمة (9999) */
+    background: rgba(0, 0, 0, 0.1); /* شفافية / ضلال */
+    backdrop-filter: blur(2px); /* ضباب خارج النافذة */
+    display: none; /* يتم إظهاره وإخفاؤه بواسطة الجافاسكريبت */
+    transition: all 0.2s ease;
+}
+
+#modweeb-chat-container {
+    /* تغيير الموضع ليكون داخل الحاوية الجديدة (Backdrop) */
+    position: absolute;
     bottom: 142px;
     right: 32px;
     width: 310px;
@@ -72,14 +89,15 @@
     border-radius: 18px;
     box-shadow: 0 3px 24px rgba(0, 0, 0, 0.05);
     z-index: 9999;
-    display: none;
+    display: none; /* يتم التحكم في عرضه عبر JS عند ظهور الخلفية */
     flex-direction: column;
     overflow: hidden;
     transition: all 0.2s ease;
-    touch-action: none;
+    /* إزالة touch-action: none; لضمان عمل التمرير الطبيعي مع الكيبورد المفتوح */
     user-select: none;
 }
 
+/* --- أنماط رأس النافذة --- */
 #modweeb-chat-container .modweeb-head {
     background: var(--contentBa, #f8fafc);
     padding: 8px 14px;
@@ -110,9 +128,46 @@
     cursor: pointer;
 }
 
+/* --- أنماط شريط الاقتراحات الأفقي (طلب المستخدم) --- */
+.modweeb-suggestions {
+    /* تفعيل التمرير الأفقي والالتصاق بالأعلى */
+    padding: 6px 13px; /* مسافة داخلية */
+    display: flex;
+    flex-wrap: nowrap; /* منع الالتفاف للأقتراحات */
+    gap: 7px;
+    overflow-x: auto; /* تفعيل التمرير الأفقي */
+    overflow-y: hidden;
+    position: sticky; /* لجعل الشريط ثابتاً في الأعلى */
+    top: 0;
+    z-index: 50;
+    background: var(--contentB, #ffffff); /* خلفية بيضاء لظهور الخط الفاصل بوضوح */
+    border-bottom: 1px solid var(--contentL, #e2e8f0); /* الخط الفاصل/الحد */
+    box-shadow: 0 2px 4px -2px rgba(0, 0, 0, 0.05); /* ظل خفيف لإظهار الثبات */
+    padding-bottom: 10px; /* مسافة إضافية تحت الأزرار */
+}
+
+/* منع تصغير أزرار الاقتراحات */
+.modweeb-suggestion-btn {
+    flex-shrink: 0;
+    background: var(--contentBa, #f8fafc);
+    color: var(--linkC, #3b82f6);
+    border-radius: 13px;
+    border: 1px solid var(--contentL, #e2e8f0);
+    font-size: 8px;
+    padding: 5px 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.modweeb-suggestion-btn:hover {
+    background: var(--linkC, #3b82f6);
+    color: #ffffff;
+}
+
+/* --- أنماط الرسائل ومنطقة التمرير --- */
 #modweeb-messages {
     flex: 1;
-    overflow-y: auto;
+    overflow-y: auto; /* لضمان التمرير العمودي داخل المحادثة */
     padding: 10px 12px;
     display: flex;
     flex-direction: column;
@@ -121,9 +176,62 @@
     min-height: 60px;
 }
 
+/* --- أنماط أزرار النسخ والتعديل (طلب المستخدم) --- */
 .modweeb-msg-ai, .modweeb-msg-user {
     max-width: 92%;
+    position: relative; /* لتحديد موضع الأزرار بالنسبة للرسالة */
+    padding-top: 15px; /* مسافة علوية للأزرار الجديدة */
 }
+
+/* الحاوية العلوية للأزرار (قلم التعديل/نسخ الرسالة) */
+.modweeb-controls-top {
+    position: absolute;
+    top: 0; /* فوق الفقاعة مباشرة */
+    z-index: 10;
+    display: flex;
+    gap: 5px;
+}
+
+/* موضع أزرار رسائل المستخدم (يمين الفقاعة) */
+.modweeb-msg-user .modweeb-controls-top {
+    left: 0;
+}
+/* موضع أزرار رسائل الـ AI (يسار الفقاعة) */
+.modweeb-msg-ai .modweeb-controls-top {
+    right: 0;
+    /* ملاحظة: زر النسخ الحالي في AI قد يكون داخل .meta، يجب نقله في JS */
+}
+
+/* تصميم الأزرار (نسخ، تعديل، وغيرها في modweeb-controls-top) */
+.modweeb-controls-top button,
+.msg-controls button /* في حالة إذا كان زر النسخ القديم لا يزال يستخدم .msg-controls */
+{
+    background: var(--contentBa, #f8fafc); /* خلفية */
+    border: 1px solid var(--contentL, #e2e8f0); /* حدود */
+    color: var(--bodyC, #334155);
+    padding: 2px 6px;
+    border-radius: 9px;
+    font-size: 8px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.modweeb-controls-top button:hover {
+    background: var(--contentL, #e2e8f0);
+    color: var(--linkC, #3b82f6);
+}
+
+.modweeb-controls-top svg,
+.msg-controls svg {
+    width: 12px;
+    height: 12px;
+}
+
+/* --- أنماط فقاعات الرسائل --- */
 
 .modweeb-msg-user {
     align-self: flex-end;
@@ -175,6 +283,7 @@
     box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
 }
 
+/* إخفاء عناصر التحكم القديمة في AI messages إذا تم النقل إلى modweeb-controls-top */
 .msg-controls {
     display: flex;
     gap: 6px;
@@ -197,6 +306,7 @@
     color: var(--bodyC, #334155);
 }
 
+/* --- أنماط الإدخال والإرسال --- */
 #modweeb-chat-container .modweeb-input-wrap {
     padding: 8px 11px 6px;
     border-top: 1px solid var(--contentL, #e2e8f0);
@@ -245,39 +355,26 @@
     height: 14px;
 }
 
-#modweeb-messages::-webkit-scrollbar {
+/* --- أنماط شريط التمرير (العمودي والأفقي) --- */
+#modweeb-messages::-webkit-scrollbar,
+.modweeb-suggestions::-webkit-scrollbar {
     height: 7px;
     width: 5px;
 }
 
-#modweeb-messages::-webkit-scrollbar-thumb {
+#modweeb-messages::-webkit-scrollbar-thumb,
+.modweeb-suggestions::-webkit-scrollbar-thumb {
     background: var(--linkC, #3b82f6);
     border-radius: 8px;
 }
 
-.modweeb-suggestions {
-    padding: 6px 13px 0 13px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 7px;
-}
-
-.modweeb-suggestion-btn {
+#modweeb-messages::-webkit-scrollbar-track,
+.modweeb-suggestions::-webkit-scrollbar-track {
     background: var(--contentBa, #f8fafc);
-    color: var(--linkC, #3b82f6);
-    border-radius: 13px;
-    border: 1px solid var(--contentL, #e2e8f0);
-    font-size: 8px;
-    padding: 5px 13px;
-    cursor: pointer;
-    transition: all 0.2s ease;
+    border-radius: 8px;
 }
 
-.modweeb-suggestion-btn:hover {
-    background: var(--linkC, #3b82f6);
-    color: #ffffff;
-}
-
+/* ... بقية الأنماط ... */
 #modweeb-status {
     font-size: 8px;
     color: var(--notifC, #64748b);
@@ -339,202 +436,14 @@
     background: var(--contentL, #e2e8f0);
     color: var(--bodyC, #334155);
     border: 1px solid var(--linkC, #3b82f6);
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    border-radius: 10px;
+    padding: 5px 10px;
+    font-size: 9px;
     cursor: pointer;
-    transition: background-color 0.2s, color 0.2s;
+    transition: all 0.2s ease;
 }
 
 .modweeb-actions button:hover {
     background: var(--linkC, #3b82f6);
     color: #ffffff;
-}
-
-.modweeb-actions button svg {
-    width: 14px;
-    height: 14px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-}
-
-#modweeb-chat-close {
-    background: var(--contentB, #ffffff);
-    border: 1px solid var(--linkC, #3b82f6);
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    cursor: pointer;
-}
-
-#modweeb-chat-close:hover {
-    background: var(--linkC, #3b82f6);
-}
-
-#modweeb-chat-close svg {
-    width: 14px;
-    height: 14px;
-    stroke: var(--bodyC, #334155);
-    transition: stroke 0.2s;
-}
-
-#modweeb-chat-close:hover svg {
-    stroke: #ffffff;
-}
-
-#modweeb-chat-container .modweeb-head span svg {
-    border: 1px solid var(--linkC, #3b82f6);
-    border-radius: 50%;
-    padding: 3px;
-    background: var(--contentB, #ffffff);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    width: 20px;
-    height: 20px;
-    vertical-align: middle;
-}
-
-.spinner {
-    width: 20px;
-    height: 20px;
-    border: 3px solid rgba(0, 0, 0, 0.08);
-    border-top: 3px solid var(--linkC, #3b82f6);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0); }
-    100% { transform: rotate(360deg); }
-}
-
-.modweeb-usage {
-    font-size: 19px;
-    color: var(--notifC, #64748b);
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    margin-inline-start: 6px;
-    font-size: 9px;
-}
-
-.modweeb-usage span {
-    font-size: 9px;
-}
-
-@media (max-width: 480px) {
-    #modweeb-chat-container {
-        width: 80vw;
-        max-width: 90vw;
-        height: 70vh;
-        max-height: 50vh;
-        bottom: 0;
-        right: 0;
-        border-radius: 12px 12px 0 0;
-    }
-    
-    .modweeb-chat-btn {
-        position: fixed !important;
-        z-index: 9999 !important;
-        right: 20px !important;
-        bottom: 88px !important;
-    }
-    
-    /* إصلاح مشكلة التمرير عند فتح الكيبورد */
-#modweeb-messages {
-    flex-grow: 1; 
-    overflow-y: auto; 
-    padding: 10px;
-    min-height: 60px; 
-    
-    /* هذا هو الحل لمشكلة التمرير في iOS والأجهزة التي تعمل باللمس */
-    -webkit-overflow-scrolling: touch; 
-}
-
-/* حل بديل: إيقاف التمرير الكلي للصفحة عند لمس الدردشة (قد يكون قويًا) */
-#modweeb-chat-container {
-    overscroll-behavior: contain;
-}
-    
-    .modweeb-suggestions {
-    display: flex; /* ترتيب الاقتراحات جنباً إلى جنب */
-    gap: 10px; /* مسافة بين الأزرار */
-    padding: 10px;
-    border-top: 1px solid var(--borderC, #e3e7ef); /* خط فاصل علوي */
-    border-bottom: 1px solid var(--borderC, #e3e7ef); /* خط فاصل سفلي */
-    
-    overflow-x: auto; /* تمكين التمرير الأفقي */
-    overflow-y: hidden; /* إخفاء التمرير العمودي */
-    white-space: nowrap; /* منع الأزرار من النزول لسطر جديد */
-    
-    /* تحسين التمرير باللمس */
-    -webkit-overflow-scrolling: touch; 
-}
-
-.modweeb-suggestion-btn {
-    flex-shrink: 0; /* منع تصغير الأزرار عند ضيق المساحة */
-    /* أضف تصميم الأزرار هنا (خلفية، حدود، إلخ.) */
-    background: var(--contentB, #f0f4f8);
-    border: 1px solid var(--borderC, #d1d5db);
-    padding: 6px 12px;
-    border-radius: 20px;
-    cursor: pointer;
-    font-size: 0.85rem;
-}
-
-/* إعداد حاوية الرسالة للموضع المطلق */
-.modweeb-msg-user, 
-.modweeb-msg-ai {
-    position: relative; /* يجب أن يكون الأب موضع نسبي */
-    /* التأكد من أن الفقاعة لا تغطي الأزرار */
-    z-index: 1; 
-}
-
-/* تصميم الحاوية الجديدة للأزرار (العنصر الأب) */
-.modweeb-controls-top {
-    position: absolute;
-    top: -5px; /* رفع الأزرار قليلاً فوق الفقاعة */
-    z-index: 10; /* ضمان ظهورها فوق كل شيء */
-    /* وضع أزرار المستخدم يمين الفقاعة */
-    right: 5px; 
-}
-
-.modweeb-msg-ai .modweeb-controls-top {
-    /* وضع أزرار الـ AI يسار الفقاعة */
-    left: 5px; 
-    right: auto;
-}
-
-/* تصميم الأزرار نفسها */
-.modweeb-controls-top button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    background-color: var(--primaryC, #2563eb); /* خلفية بارزة */
-    border: 1px solid var(--primaryL, #ffffff); 
-    border-radius: 50%;
-    cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* ضلال بسيط */
-    color: #ffffff; /* لون أيقونة النسخ/التعديل */
-}
-/* أيقونة SVG داخل الأزرار */
-.modweeb-controls-top button svg {
-    width: 16px; 
-    height: 16px;
-    stroke: currentColor;
-}
-
-
-    #modweeb-widget-container * {
-        box-sizing: border-box !important;
-    }
 }
