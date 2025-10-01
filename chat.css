@@ -1,5 +1,4 @@
 /* أنماط أداة الدردشة الذكية - متوافقة مع نظام ModWeeb الموحد */
-/* --- أنماط الزر العائم --- */
 .modweeb-chat-btn {
     position: fixed;
     z-index: 9999;
@@ -59,23 +58,24 @@
     height: 14px;
 }
 
-/* --- أنماط الخلفية والنافذة (Backdrop) --- */
-/* الحاوية الخارجية الآن تعمل كـ Backdrop */
+/* حاوية الدردشة الرئيسية مع تأثير الضباب */
 #modweeb-widget-container {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 9998; /* أسفل النافذة العائمة (9999) */
-    background: rgba(0, 0, 0, 0.1); /* شفافية / ضلال */
-    backdrop-filter: blur(2px); /* ضباب خارج النافذة */
-    display: none; /* يتم إظهاره وإخفاؤه بواسطة الجافاسكريبت */
-    transition: all 0.2s ease;
+    inset: 0;
+    z-index: 9998;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: none;
+    animation: modweeb-fadeIn 0.2s ease;
+}
+
+@keyframes modweeb-fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 #modweeb-chat-container {
-    /* تغيير الموضع ليكون داخل الحاوية الجديدة (Backdrop) */
     position: absolute;
     bottom: 142px;
     right: 32px;
@@ -87,17 +87,18 @@
     background: var(--contentB, #ffffff);
     border: 1px solid var(--contentL, #e2e8f0);
     border-radius: 18px;
-    box-shadow: 0 3px 24px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 3px 24px rgba(0, 0, 0, 0.1);
     z-index: 9999;
-    display: none; /* يتم التحكم في عرضه عبر JS عند ظهور الخلفية */
+    display: none;
     flex-direction: column;
     overflow: hidden;
     transition: all 0.2s ease;
-    /* إزالة touch-action: none; لضمان عمل التمرير الطبيعي مع الكيبورد المفتوح */
+    touch-action: none;
     user-select: none;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
 }
 
-/* --- أنماط رأس النافذة --- */
 #modweeb-chat-container .modweeb-head {
     background: var(--contentBa, #f8fafc);
     padding: 8px 14px;
@@ -128,110 +129,32 @@
     cursor: pointer;
 }
 
-/* --- أنماط شريط الاقتراحات الأفقي (طلب المستخدم) --- */
-.modweeb-suggestions {
-    /* تفعيل التمرير الأفقي والالتصاق بالأعلى */
-    padding: 6px 13px; /* مسافة داخلية */
-    display: flex;
-    flex-wrap: nowrap; /* منع الالتفاف للأقتراحات */
-    gap: 7px;
-    overflow-x: auto; /* تفعيل التمرير الأفقي */
-    overflow-y: hidden;
-    position: sticky; /* لجعل الشريط ثابتاً في الأعلى */
-    top: 0;
-    z-index: 50;
-    background: var(--contentB, #ffffff); /* خلفية بيضاء لظهور الخط الفاصل بوضوح */
-    border-bottom: 1px solid var(--contentL, #e2e8f0); /* الخط الفاصل/الحد */
-    box-shadow: 0 2px 4px -2px rgba(0, 0, 0, 0.05); /* ظل خفيف لإظهار الثبات */
-    padding-bottom: 10px; /* مسافة إضافية تحت الأزرار */
-}
-
-/* منع تصغير أزرار الاقتراحات */
-.modweeb-suggestion-btn {
-    flex-shrink: 0;
-    background: var(--contentBa, #f8fafc);
-    color: var(--linkC, #3b82f6);
-    border-radius: 13px;
-    border: 1px solid var(--contentL, #e2e8f0);
-    font-size: 8px;
-    padding: 5px 13px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.modweeb-suggestion-btn:hover {
-    background: var(--linkC, #3b82f6);
-    color: #ffffff;
-}
-
-/* --- أنماط الرسائل ومنطقة التمرير --- */
 #modweeb-messages {
     flex: 1;
-    overflow-y: auto; /* لضمان التمرير العمودي داخل المحادثة */
+    overflow-y: auto;
     padding: 10px 12px;
     display: flex;
     flex-direction: column;
     gap: 9px;
     font-size: 10px;
     min-height: 60px;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--linkC, #3b82f6) var(--contentBa, #f8fafc);
 }
 
-/* --- أنماط أزرار النسخ والتعديل (طلب المستخدم) --- */
+/* منع تمرير الصفحة عند التمرير في الدردشة */
+#modweeb-messages:active,
+#modweeb-messages:focus {
+    touch-action: pan-y;
+}
+
 .modweeb-msg-ai, .modweeb-msg-user {
     max-width: 92%;
-    position: relative; /* لتحديد موضع الأزرار بالنسبة للرسالة */
-    padding-top: 15px; /* مسافة علوية للأزرار الجديدة */
+    position: relative;
+    margin-bottom: 16px;
 }
-
-/* الحاوية العلوية للأزرار (قلم التعديل/نسخ الرسالة) */
-.modweeb-controls-top {
-    position: absolute;
-    top: 0; /* فوق الفقاعة مباشرة */
-    z-index: 10;
-    display: flex;
-    gap: 5px;
-}
-
-/* موضع أزرار رسائل المستخدم (يمين الفقاعة) */
-.modweeb-msg-user .modweeb-controls-top {
-    left: 0;
-}
-/* موضع أزرار رسائل الـ AI (يسار الفقاعة) */
-.modweeb-msg-ai .modweeb-controls-top {
-    right: 0;
-    /* ملاحظة: زر النسخ الحالي في AI قد يكون داخل .meta، يجب نقله في JS */
-}
-
-/* تصميم الأزرار (نسخ، تعديل، وغيرها في modweeb-controls-top) */
-.modweeb-controls-top button,
-.msg-controls button /* في حالة إذا كان زر النسخ القديم لا يزال يستخدم .msg-controls */
-{
-    background: var(--contentBa, #f8fafc); /* خلفية */
-    border: 1px solid var(--contentL, #e2e8f0); /* حدود */
-    color: var(--bodyC, #334155);
-    padding: 2px 6px;
-    border-radius: 9px;
-    font-size: 8px;
-    display: flex;
-    align-items: center;
-    gap: 3px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.modweeb-controls-top button:hover {
-    background: var(--contentL, #e2e8f0);
-    color: var(--linkC, #3b82f6);
-}
-
-.modweeb-controls-top svg,
-.msg-controls svg {
-    width: 12px;
-    height: 12px;
-}
-
-/* --- أنماط فقاعات الرسائل --- */
 
 .modweeb-msg-user {
     align-self: flex-end;
@@ -268,11 +191,48 @@
     text-decoration: underline;
 }
 
-.modweeb-msg-ai .meta {
+/* أزرار التحكم العلوية */
+.modweeb-controls-top {
+    position: absolute;
+    top: -12px;
     display: flex;
-    gap: 6px;
-    margin-top: 6px;
+    gap: 4px;
+    z-index: 10;
+}
+
+.modweeb-msg-user .modweeb-controls-top {
+    right: 8px;
+}
+
+.modweeb-msg-ai .modweeb-controls-top {
+    left: 8px;
+}
+
+.modweeb-controls-top button {
+    background: var(--linkC, #3b82f6);
+    border: 2px solid var(--contentB, #ffffff);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
     align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transition: all 0.2s ease;
+    color: #ffffff;
+}
+
+.modweeb-controls-top button:hover {
+    background: var(--headerC, #1e293b);
+    transform: scale(1.1);
+}
+
+.modweeb-controls-top button svg {
+    width: 12px;
+    height: 12px;
+    stroke: currentColor;
+    stroke-width: 2.5;
 }
 
 .modweeb-msg-ai img {
@@ -283,30 +243,15 @@
     box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
 }
 
-/* إخفاء عناصر التحكم القديمة في AI messages إذا تم النقل إلى modweeb-controls-top */
+/* إخفاء عناصر التحكم القديمة */
+.meta {
+    display: none !important;
+}
+
 .msg-controls {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-    margin-inline-start: 6px;
+    display: none !important;
 }
 
-.msg-controls button {
-    background: transparent;
-    border: none;
-    padding: 4px;
-    border-radius: 6px;
-    cursor: pointer;
-    color: var(--notifC, #64748b);
-    font-size: 9px;
-}
-
-.msg-controls button:hover {
-    background: var(--contentL, #e2e8f0);
-    color: var(--bodyC, #334155);
-}
-
-/* --- أنماط الإدخال والإرسال --- */
 #modweeb-chat-container .modweeb-input-wrap {
     padding: 8px 11px 6px;
     border-top: 1px solid var(--contentL, #e2e8f0);
@@ -355,26 +300,61 @@
     height: 14px;
 }
 
-/* --- أنماط شريط التمرير (العمودي والأفقي) --- */
-#modweeb-messages::-webkit-scrollbar,
-.modweeb-suggestions::-webkit-scrollbar {
+#modweeb-messages::-webkit-scrollbar {
     height: 7px;
     width: 5px;
 }
 
-#modweeb-messages::-webkit-scrollbar-thumb,
-.modweeb-suggestions::-webkit-scrollbar-thumb {
+#modweeb-messages::-webkit-scrollbar-thumb {
     background: var(--linkC, #3b82f6);
     border-radius: 8px;
 }
 
-#modweeb-messages::-webkit-scrollbar-track,
-.modweeb-suggestions::-webkit-scrollbar-track {
+/* شريط التمرير الأفقي للاقتراحات */
+.modweeb-suggestions {
+    display: flex;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    gap: 8px;
+    padding: 10px 12px;
+    border-top: 1px solid var(--contentL, #e2e8f0);
+    border-bottom: 1px solid var(--contentL, #e2e8f0);
     background: var(--contentBa, #f8fafc);
-    border-radius: 8px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--linkC, #3b82f6) transparent;
+    -webkit-overflow-scrolling: touch;
 }
 
-/* ... بقية الأنماط ... */
+.modweeb-suggestions::-webkit-scrollbar {
+    height: 4px;
+}
+
+.modweeb-suggestions::-webkit-scrollbar-thumb {
+    background: var(--linkC, #3b82f6);
+    border-radius: 2px;
+}
+
+.modweeb-suggestion-btn {
+    flex-shrink: 0;
+    background: var(--contentB, #ffffff);
+    color: var(--linkC, #3b82f6);
+    border: 1px solid var(--contentL, #e2e8f0);
+    border-radius: 16px;
+    font-size: 9px;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.modweeb-suggestion-btn:hover {
+    background: var(--linkC, #3b82f6);
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
 #modweeb-status {
     font-size: 8px;
     color: var(--notifC, #64748b);
@@ -436,14 +416,131 @@
     background: var(--contentL, #e2e8f0);
     color: var(--bodyC, #334155);
     border: 1px solid var(--linkC, #3b82f6);
-    border-radius: 10px;
-    padding: 5px 10px;
-    font-size: 9px;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s, color 0.2s;
 }
 
 .modweeb-actions button:hover {
     background: var(--linkC, #3b82f6);
     color: #ffffff;
+}
+
+.modweeb-actions button svg {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+}
+
+#modweeb-chat-close {
+    background: var(--contentB, #ffffff);
+    border: 1px solid var(--linkC, #3b82f6);
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    cursor: pointer;
+}
+
+#modweeb-chat-close:hover {
+    background: var(--linkC, #3b82f6);
+}
+
+#modweeb-chat-close svg {
+    width: 14px;
+    height: 14px;
+    stroke: var(--bodyC, #334155);
+    transition: stroke 0.2s;
+}
+
+#modweeb-chat-close:hover svg {
+    stroke: #ffffff;
+}
+
+#modweeb-chat-container .modweeb-head span svg {
+    border: 1px solid var(--linkC, #3b82f6);
+    border-radius: 50%;
+    padding: 3px;
+    background: var(--contentB, #ffffff);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    width: 20px;
+    height: 20px;
+    vertical-align: middle;
+}
+
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(0, 0, 0, 0.08);
+    border-top: 3px solid var(--linkC, #3b82f6);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0); }
+    100% { transform: rotate(360deg); }
+}
+
+.modweeb-usage {
+    font-size: 19px;
+    color: var(--notifC, #64748b);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-inline-start: 6px;
+    font-size: 9px;
+}
+
+.modweeb-usage span {
+    font-size: 9px;
+}
+
+@media (max-width: 480px) {
+    #modweeb-widget-container {
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+    }
+    
+    #modweeb-chat-container {
+        width: 90vw;
+        max-width: 90vw;
+        height: 70vh;
+        max-height: 70vh;
+        bottom: 50%;
+        right: 50%;
+        transform: translate(50%, 50%);
+        border-radius: 18px;
+    }
+    
+    .modweeb-chat-btn {
+        position: fixed !important;
+        z-index: 9999 !important;
+        right: 20px !important;
+        bottom: 88px !important;
+    }
+    
+    .modweeb-suggestions {
+        padding: 8px 10px;
+    }
+    
+    .modweeb-suggestion-btn {
+        font-size: 8px;
+        padding: 5px 10px;
+    }
+    
+    #modweeb-widget-container * {
+        box-sizing: border-box !important;
+    }
 }
