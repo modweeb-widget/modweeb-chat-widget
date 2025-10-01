@@ -44,8 +44,6 @@ function modweebChat(options) {
                 <div class="modweeb-suggestions" aria-hidden="false">
                     <button class="modweeb-suggestion-btn">كيف أحسن سرعة مدونتي؟</button>
                     <button class="modweeb-suggestion-btn">ما أفضل إضافات SEO؟</button>
-                    <button class="modweeb-suggestion-btn">ما هي أحدث تقنيات الويب؟</button>
-                    <button class="modweeb-suggestion-btn">ما هو الفرق بين CSS Grid و Flexbox؟</button>
                 </div>
                 <div id="modweeb-messages" aria-live="polite"></div>
                 <div class="modweeb-input-wrap">
@@ -180,28 +178,15 @@ function modweebChat(options) {
             messagesContainer.innerHTML = "", t.forEach(e => {
                 let t = document.createElement("div");
                 "user" === e.role ? t.className = "modweeb-msg-user" : t.className = "modweeb-msg-ai";
-                
-                // ** [تعديل 1]: إضافة زر التعديل فوق رسالة المستخدم (للمستخدم) **
-                if ("user" === e.role) {
-                    let s = document.createElement("div"); 
-                    s.className = "modweeb-controls-top";
-                    s.innerHTML = `<button class="edit-user" title="تعديل">
-                        <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 20h9"></path><path d="M16.5 3.5l4 4L7 20H3v-4L16.5 3.5z"></path></svg>
-                      </button>`;
-                    t.appendChild(s); 
-                }
-                
                 let s = document.createElement("div");
-                s.className = "bubble", s.innerHTML = e.html, t.appendChild(s);
-                
-                // ** [تعديل 2]: إضافة زر النسخ فوق رسالة AI (للذكاء الاصطناعي) **
-                if ("assistant" === e.role) {
+                if (s.className = "bubble", s.innerHTML = e.html, t.appendChild(s), "assistant" === e.role) {
                     let a = document.createElement("div");
-                    a.className = "modweeb-controls-top";
-                    a.innerHTML = `<button class="copy-reply" title="نسخ الرد">
-                        <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"></path><rect width="10" height="10" x="8" y="2" rx="2"></rect></svg>
-                      </button>`;
-                    t.appendChild(a)
+                    let a = document.createElement("div");
+    a.className = "modweeb-controls-top"; 
+    a.innerHTML = `<button class="copy-reply" title="نسخ الرد">
+        <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"></path><rect width="10" height="10" x="8" y="2" rx="2"></rect></svg>
+      </button>`; 
+    t.appendChild(a); 
                 }
                 messagesContainer.appendChild(t)
             }), messagesLoaded = !0, setTimeout(() => {
@@ -216,45 +201,33 @@ function modweebChat(options) {
         }, t)
     }
 
-    // ** [تعديل 3]: تحديث إنشاء رسالة المستخدم لوضع زر التعديل في الأعلى **
-    function createUserMessage(e) {
-        let t = document.createElement("div");
-        t.className = "modweeb-msg-user";
-        
-        let s = document.createElement("div"); 
-        s.className = "modweeb-controls-top"; 
-        s.innerHTML = `<button class="edit-user" title="تعديل">
-            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 20h9"></path><path d="M16.5 3.5l4 4L7 20H3v-4L16.5 3.5z"></path></svg>
-          </button>`;
-        t.appendChild(s); 
+function createUserMessage(e) {
+    let t = document.createElement("div");
+    t.className = "modweeb-msg-user";
+    // إضافة الـ controls (أزرار التعديل) قبل فقاعة الرسالة
+    let s = document.createElement("div"); 
+    s.className = "modweeb-controls-top"; // كلاس جديد لتنسيق الموضع
+    s.innerHTML = `<button class="edit-user" title="تعديل">
+        <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 20h9"></path><path d="M16.5 3.5l4 4L7 20H3v-4L16.5 3.5z"></path></svg>
+      </button>`; // استخدم SVG للقلم
+    t.appendChild(s); 
 
-        let n = document.createElement("div");
-        n.className = "bubble", n.innerHTML = renderRichText(e), t.appendChild(n);
-        
-        return messagesContainer.appendChild(t), t
-    }
+    let n = document.createElement("div");
+    n.className = "bubble", n.innerHTML = renderRichText(e), t.appendChild(n);
+    
+    return messagesContainer.appendChild(t), t
+}
 
-    // ** [تعديل 4]: تحديث إنشاء رسالة AI المؤقتة لوضع زر النسخ في الأعلى **
     function createAiPlaceholder() {
         let e = document.createElement("div");
         e.className = "modweeb-msg-ai";
-        
-        // أزرار التحكم (النسخ وإعادة المحاولة)
-        let n = document.createElement("div");
-        n.className = "modweeb-controls-top";
-        n.innerHTML = `<button class="copy-reply" title="نسخ الرد">
-            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"></path><rect width="10" height="10" x="8" y="2" rx="2"></rect></svg>
-          </button>
-          <button class="resend-retry" title="إعادة المحاولة" style="display:none">
-            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M22 12A10 10 0 0012 2a10 10 0 00-7.39 3.39L2 8h6.21"></path><path d="M2 12A10 10 0 0012 22a10 10 0 007.39-3.39L22 16h-6.21"></path></svg>
-          </button>`;
-        e.appendChild(n);
-        
         let t = document.createElement("div");
         t.className = "bubble", t.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><div class="spinner" aria-hidden="true"></div> جاري الكتابة...</div>`, e.appendChild(t);
-        
-        messagesContainer.appendChild(e), messagesContainer.scrollTop = messagesContainer.scrollHeight, e.querySelector(".resend-retry").style.display = "none";
-        return e
+        let n = document.createElement("div");
+        return n.className = "meta", n.innerHTML = `<div class="msg-controls">
+        <button class="copy-reply" title="نسخ الرد">نسخ</button>
+        <button class="resend-retry" title="إعادة المحاولة" style="display:none">إعادة</button>
+      </div>`, e.appendChild(n), messagesContainer.appendChild(e), messagesContainer.scrollTop = messagesContainer.scrollHeight, e
     }
 
     function buildConversationPayload(e) {
@@ -318,9 +291,8 @@ function modweebChat(options) {
             let y = l.querySelector(".bubble");
             y && (y.innerHTML = `<div style="color:#ef4444;">❌ تعذر استجابة المساعد</div>`);
             let b = l.querySelector(".resend-retry");
-            // [تعديل 5]: التأكد من ظهور زر الإعادة عند الفشل
-            return b && (b.style.display = "inline-flex", b.onclick = async function() {
-                b.disabled = !0, b.textContent = "...", y.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><div class="spinner"></div> إعادة المحاولة...</div>`, await sendMessage(e, l, !0), b.disabled = !1, b.textContent = ""
+            return b && (b.style.display = "inline-block", b.onclick = async function() {
+                b.disabled = !0, b.textContent = "...", y.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><div class="spinner"></div> إعادة المحاولة...</div>`, await sendMessage(e, l, !0), b.disabled = !1, b.textContent = "إعادة"
             }), saveHistory(), showStatus("تعذر الاتصال بالخادم"), !1
         }
     }
@@ -329,25 +301,16 @@ function modweebChat(options) {
         if (!messagesLoaded) {
             let e = document.createElement("div");
             e.className = "modweeb-msg-ai";
-            
-            // إضافة زر النسخ للمعلومات الافتتاحية
-            let a = document.createElement("div");
-            a.className = "modweeb-controls-top";
-            a.innerHTML = `<button class="copy-reply" title="نسخ الرد">
-                <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"></path><rect width="10" height="10" x="8" y="2" rx="2"></rect></svg>
-              </button>`;
-            e.appendChild(a);
-
             let t = document.createElement("div");
             t.className = "bubble", t.innerHTML = `👋 مرحبًا بك في دردشة <b>modweeb.com</b>! كيف أساعدك؟`, e.appendChild(t);
-            
-            messagesContainer.appendChild(e), messagesLoaded = !0, modweebTrackEvent("chat_opened"), setTimeout(() => {
+            let n = document.createElement("div");
+            n.className = "meta", n.innerHTML = `<div class="msg-controls"><button class="copy-reply" title="نسخ الرد">نسخ</button></div>`, e.appendChild(n), messagesContainer.appendChild(e), messagesLoaded = !0, modweebTrackEvent("chat_opened"), setTimeout(() => {
                 messagesContainer.scrollTop = messagesContainer.scrollHeight
             }, 100)
         }
     }
 
-    // 4. **تعديل الـ Event Listeners والسلوكيات**
+    // 4. **تعديل الـ Event Listeners**
     btn.onclick = function() {
         container.style.display = "flex", container.style.position = "fixed", container.style.left = "", container.style.top = "", container.style.right = "32px", container.style.bottom = "142px", lazyLoadMessages(), setTimeout(function() {
             inputArea.focus()
@@ -386,14 +349,12 @@ function modweebChat(options) {
         localStorage.removeItem(HISTORY_KEY), messagesContainer.innerHTML = "", messagesLoaded = !1, lazyLoadMessages(), showStatus("تم حذف المحادثة!")
     }, messagesContainer.addEventListener("click", function(e) {
         let t = e.target;
-        // تعديل آلية العثور على زر النسخ بعد تغيير الهيكل
         if (t.closest(".copy-reply")) {
             let n = t.closest(".modweeb-msg-ai");
             if (!n) return;
             let s = n.querySelector(".bubble").innerText || "";
             navigator.clipboard.writeText(s).then(() => showStatus("تم نسخ الرد!"))
         }
-        // تعديل آلية العثور على زر التعديل بعد تغيير الهيكل
         if (t.closest(".edit-user")) {
             let a = t.closest(".modweeb-msg-user");
             if (!a) return;
@@ -425,8 +386,7 @@ function modweebChat(options) {
     function adjustForKeyboard() {
         let e = window.visualViewport.height,
             t = window.innerHeight;
-        // زيادة المسافة عند فتح الكيبورد لتجنب اختفاء الودجت
-        t - e > 150 ? (container.style.bottom = "40px", btn.style.bottom = "40px") : (container.style.bottom = "142px", btn.style.bottom = "88px")
+        t - e > 150 ? (container.style.bottom = "10px", btn.style.bottom = "10px") : (container.style.bottom = "142px", btn.style.bottom = "88px")
     }
 
     head.addEventListener("click", function(e) {
