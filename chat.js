@@ -4,9 +4,7 @@ function modweebChat(options) {
     const USAGE_KEY = "modweebChatUsage_v1";
     const HISTORY_KEY = "modweebChatHistory_v1";
     const DEV_FLAG_KEY = "modweebDevUnlimited_v1";
-    const DEFAULT_DAILY_LIMIT = 25;
 
-    // 1. HTML المُحدَّث مع إضافة modweeb-widget-container كـ Backdrop
     const WIDGET_HTML = `
         <button id="modweeb-chat-btn" type="button" class="modweeb-chat-btn" aria-label="فتح الدردشة" title="ابدأ دردشة AI">
             <svg class="modweeb-svg-btn-n" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -44,8 +42,8 @@ function modweebChat(options) {
                 <div class="modweeb-suggestions" aria-hidden="false">
                     <button class="modweeb-suggestion-btn">كيف أحسن سرعة مدونتي؟</button>
                     <button class="modweeb-suggestion-btn">ما أفضل إضافات SEO؟</button>
-                    <button class="modweeb-suggestion-btn">اكتب مقدمة لتدوينة عن الذكاء الاصطناعي</button>
-                    <button class="modweeb-suggestion-btn">ما هي أفضل استراتيجيات التسويق بالمحتوى؟</button>
+                    <button class="modweeb-suggestion-btn">كيف أزيد زوار مدونتي؟</button>
+                    <button class="modweeb-suggestion-btn">نصائح لتحسين المحتوى</button>
                 </div>
                 <div id="modweeb-messages" aria-live="polite"></div>
                 <div class="modweeb-input-wrap">
@@ -76,19 +74,15 @@ function modweebChat(options) {
         </div>
     `;
 
-    // 2. إدراج الـ HTML في الصفحة
     const tempDiv = document.createElement("div");
     tempDiv.innerHTML = WIDGET_HTML;
-    while (tempDiv.firstChild) {
-        document.body.appendChild(tempDiv.firstChild);
-    }
+    for (; tempDiv.firstChild;) document.body.appendChild(tempDiv.firstChild);
 
-    // 3. تعريف العناصر
-    const chatBtn = document.getElementById("modweeb-chat-btn");
-    const widgetContainer = document.getElementById("modweeb-widget-container"); // Backdrop/الخلفية
-    const chatContainer = document.getElementById("modweeb-chat-container");
+    const btn = document.getElementById("modweeb-chat-btn");
+    const container = document.getElementById("modweeb-chat-container");
+    const widgetContainer = document.getElementById("modweeb-widget-container");
     const messagesContainer = document.getElementById("modweeb-messages");
-    const statusUI = document.getElementById("modweeb-status");
+    const statusDiv = document.getElementById("modweeb-status");
     const inputArea = document.getElementById("modweeb-input");
     const sendBtn = document.getElementById("modweeb-send");
     const closeBtn = document.getElementById("modweeb-chat-close");
@@ -96,415 +90,547 @@ function modweebChat(options) {
     const head = document.getElementById("modweeb-head");
     const copyAllBtn = document.getElementById("modweeb-copy-all");
     const clearBtn = document.getElementById("modweeb-clear");
-    const suggestionBtns = document.querySelectorAll(".modweeb-suggestion-btn");
+    const suggestions = document.querySelectorAll(".modweeb-suggestion-btn");
 
-    let isSending = false;
+    function escapeHtml(text) {
+        return text ? text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;") : "";
+    }
 
-    // --- منطق حالة الاستخدام (Usage State) ---
-    function loadUsage() {
-        const stored = localStorage.getItem(USAGE_KEY);
-        const today = new Date().toDateString();
-        let usage = stored ? JSON.parse(stored) : { date: today, count: 0 };
-        if (usage.date !== today) {
-            usage = { date: today, count: 0 };
+    function isSafeUrl(url) {
+        try {
+            let u = new URL(url, location.href);
+            return "https:" === u.protocol || "http:" === u.protocol;
+        } catch (n) {
+            return !1;
         }
-        usage.limit = DEFAULT_DAILY_LIMIT;
+    }
+
+    function renderRichText(text) {
+        let escaped = escapeHtml(text);
+        escaped = escaped.replace(/^#{1,6}\s+(.*)$/gm, (match, title) => 
+            `<b style="display:block; margin:15px 0 8px 0; color:var(--linkC, #2563eb);">${title.trim()}</b>`
+        );
+
+        let listCounter = 0;
+        escaped = escaped.replace(/^[*\-]\s+(.*)$/gm, (match, item) => {
+            listCounter++;
+            const arabicNumber = listCounter <= 10 ? ["١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩", "١٠"][listCounter - 1] : listCounter + ".";
+            return `${arabicNumber} ${item.trim()}<br>`;
+        });
+
+        // Continue with other replacements...
+        escaped = escaped
+            .replace(/(?<!\w)[*#](?!\w)/g, "")
+            .replace(/\*\*/g, "")
+            .replace(/\*/g, "")
+            .replace(/!\[([^\]]*?)\]\((.*?)\)/g, (match, alt, url) => 
+                isSafeUrl(url.trim()) ? 
+                    `<img src="${url.trim()}" alt="${escapeHtml(alt)}" loading="lazy" style="max-width:100%; height:auto; border-radius:8px; margin:8px 0;">` : 
+                    escapeHtml(match)
+            )
+            .replace(/\[([^\]]+)\]\((.*?)\)/g, (match, text, url) => 
+                isSafeUrl(url.trim()) ? 
+                    `<a href="${url.trim()}" target="_blank" rel="noopener noreferrer" style="color:var(--linkC, #2563eb); text-decoration:underline;">${escapeHtml(text)}</a>` : 
+                    escapeHtml(match)
+            )
+            .replace(/`([^`]+)`/g, (match, code) => 
+                `<code style="background:var(--contentBa, #f4f8ff); padding:2px 6px; border-radius:4px; border:1px solid var(--contentL, #e3e7ef);">${escapeHtml(code)}</code>`
+            )
+            .replace(/\*\*(.*?)\*\*/g, (match, bold) => 
+                `<b style="font-weight:600;">${escapeHtml(bold)}</b>`
+            )
+            .replace(/\*(.*?)\*/g, (match, italic) => 
+                `<i style="font-style:italic;">${escapeHtml(italic)}</i>`
+            )
+            .replace(/(^|\s)(https?:\/\/\S+\.(?:png|jpe?g|gif|webp|bmp))(?![^<]*>)/gi, (match, space, url) => 
+                isSafeUrl(url) ? 
+                    `${space}<img src="${url}" loading="lazy" style="max-width:100%; height:auto; border-radius:8px; margin:8px 0;">` : 
+                    match
+            )
+            .replace(/(^|\s)(https?:\/\/[^\s<]+)/g, (match, space, url) => 
+                isSafeUrl(url) ? 
+                    `${space}<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:var(--linkC, #2563eb); text-decoration:underline;">${escapeHtml(url)}</a>` : 
+                    match
+            )
+            .replace(/\n\n+/g, "<br><br>")
+            .replace(/\n/g, "<br>")
+            .replace(/(<br>){3,}/g, "<br><br>");
+
+        return escaped;
+    }
+
+    function loadUsage() {
+        try {
+            let usage = localStorage.getItem(USAGE_KEY);
+            if (!usage) return initUsage();
+            let data = JSON.parse(usage);
+            let today = new Date().toISOString().slice(0, 10);
+            if (data.date !== today) return initUsage();
+            return data;
+        } catch (err) {
+            return initUsage();
+        }
+    }
+
+    function initUsage() {
+        let today = new Date().toISOString().slice(0, 10);
+        let usage = { date: today, count: 0, limit: 25 };
+        localStorage.setItem(USAGE_KEY, JSON.stringify(usage));
         return usage;
     }
 
-    function saveUsage(usage) {
-        localStorage.setItem(USAGE_KEY, JSON.stringify(usage));
+    function remainingMessages() {
+        let isUnlimited = "1" === localStorage.getItem(DEV_FLAG_KEY);
+        if (isUnlimited) return Infinity;
+        let usage = loadUsage();
+        return Math.max(0, usage.limit - usage.count);
     }
 
     function refreshUsageUI() {
-        const usage = loadUsage();
-        const remainingUI = document.getElementById("modweeb-remaining");
-        const isDev = "1" === localStorage.getItem(DEV_FLAG_KEY);
-        remainingUI.textContent = isDev ? "وضع المطور: غير محدود" : `الرسائل المتبقية: ${usage.limit - usage.count}`;
+        let remaining = remainingMessages();
+        document.getElementById("modweeb-remaining").textContent = 
+            remaining === Infinity ? "غير محدود" : `الرسائل المتبقية: ${remaining}`;
     }
 
-    // --- منطق التاريخ (History) ---
+    let messagesLoaded = false;
+
     function saveHistory() {
-        const history = [];
-        messagesContainer.querySelectorAll(".modweeb-msg-user, .modweeb-msg-ai").forEach(msgDiv => {
-            const type = msgDiv.classList.contains("modweeb-msg-user") ? "user" : "ai";
-            const content = msgDiv.querySelector(".bubble").innerHTML;
-            history.push({ type, content });
-        });
-        localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+        try {
+            let messages = [...messagesContainer.children];
+            let history = messages.map(msg => ({
+                role: msg.classList.contains("modweeb-msg-user") ? "user" : "assistant",
+                html: msg.querySelector(".bubble") ? msg.querySelector(".bubble").innerHTML : msg.innerHTML
+            }));
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+        } catch (err) {}
     }
 
     function restoreHistory() {
-        const history = localStorage.getItem(HISTORY_KEY);
-        if (history) {
-            try {
-                const historyArr = JSON.parse(history);
-                historyArr.forEach(msg => {
-                    if (msg.type === "user") {
-                        createUserMessage(msg.content, true);
-                    } else {
-                        createAiMessage(msg.content, true);
-                    }
-                });
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            } catch (e) {
-                console.error("Failed to restore chat history:", e);
-                localStorage.removeItem(HISTORY_KEY);
-            }
+        try {
+            let history = localStorage.getItem(HISTORY_KEY);
+            if (!history) return;
+            let messages = JSON.parse(history);
+            messagesContainer.innerHTML = "";
+            messages.forEach(msgData => {
+                let msgDiv = document.createElement("div");
+                if (msgData.role === "user") {
+                    msgDiv.className = "modweeb-msg-user";
+                } else {
+                    msgDiv.className = "modweeb-msg-ai";
+                }
+
+                let bubble = document.createElement("div");
+                bubble.className = "bubble";
+                bubble.innerHTML = msgData.html;
+                msgDiv.appendChild(bubble);
+
+                // Add control buttons
+                let controls = document.createElement("div");
+                controls.className = "modweeb-controls-top";
+                
+                if (msgData.role === "user") {
+                    controls.innerHTML = `
+                        <button class="edit-user" title="تعديل">
+                            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                <path d="M12 20h9"></path>
+                                <path d="M16.5 3.5l4 4L7 20H3v-4L16.5 3.5z"></path>
+                            </svg>
+                        </button>
+                    `;
+                } else {
+                    controls.innerHTML = `
+                        <button class="copy-reply" title="نسخ الرد">
+                            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                                <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"></path>
+                                <rect width="10" height="10" x="8" y="2" rx="2"></rect>
+                            </svg>
+                        </button>
+                    `;
+                }
+                msgDiv.appendChild(controls);
+                messagesContainer.appendChild(msgDiv);
+            });
+            messagesLoaded = true;
+            setTimeout(() => { messagesContainer.scrollTop = messagesContainer.scrollHeight; }, 100);
+        } catch (err) {}
+    }
+
+    function showStatus(message, duration = 1600) {
+        statusDiv.style.display = "block";
+        statusDiv.textContent = message;
+        if (duration > 0) {
+            setTimeout(() => { statusDiv.style.display = "none"; }, duration);
         }
     }
 
-    function clearHistory() {
-        localStorage.removeItem(HISTORY_KEY);
-        messagesContainer.innerHTML = "";
-        messagesContainer.style.minHeight = "60px";
-        messagesContainer.scrollTop = 0;
-        showStatus("تم حذف المحادثة.");
-    }
-
-    // --- مساعدات HTML والرسائل ---
-
-    // دالة إنشاء فقاعة رسالة المستخدم (مُعدَّلة لإضافة زر التعديل في الموضع الجديد)
-    function createUserMessage(text, isRestore = false) {
-        const msgDiv = document.createElement("div");
+    function createUserMessage(text) {
+        let msgDiv = document.createElement("div");
         msgDiv.className = "modweeb-msg-user";
-        msgDiv.setAttribute("data-raw-text", text);
 
-        const controlsTop = document.createElement("div");
-        controlsTop.className = "modweeb-controls-top";
-        controlsTop.innerHTML = `
-            <button class="edit-user" title="تعديل الرسالة">
-                <svg class="modweeb-svg-h" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                    <path d="M12 20h9"></path><path d="M16.5 3.5l4 4L7 20H3v-4L16.5 3.5z"></path>
+        let controls = document.createElement("div");
+        controls.className = "modweeb-controls-top";
+        controls.innerHTML = `
+            <button class="edit-user" title="تعديل">
+                <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                    <path d="M12 20h9"></path>
+                    <path d="M16.5 3.5l4 4L7 20H3v-4L16.5 3.5z"></path>
                 </svg>
-                تعديل
             </button>
         `;
-        msgDiv.appendChild(controlsTop);
+        msgDiv.appendChild(controls);
 
-        const bubble = document.createElement("div");
+        let bubble = document.createElement("div");
         bubble.className = "bubble";
-        bubble.innerHTML = markdownToHtml(text);
-        msgDiv.appendChild(bubble);
-        messagesContainer.appendChild(msgDiv);
-
-        if (!isRestore) {
-            scrollToBottom();
-        }
-        return msgDiv;
-    }
-
-    // دالة إنشاء فقاعة رسالة AI (مُعدَّلة لإضافة زر النسخ في الموضع الجديد)
-    function createAiMessage(htmlContent, isRestore = false) {
-        const msgDiv = document.createElement("div");
-        msgDiv.className = "modweeb-msg-ai";
-        msgDiv.setAttribute("data-raw-text", htmlContent);
-
-        const controlsTop = document.createElement("div");
-        controlsTop.className = "modweeb-controls-top";
-        controlsTop.innerHTML = `
-            <button class="copy-ai" title="نسخ الرسالة">
-                <svg class="modweeb-svg-h" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                    <path d="M15 7h4v13c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2V7c0-1.1.9-2 2-2h4"></path><path d="M18 1v4H9c-1.1 0-2 .9-2 2v10"></path>
-                </svg>
-                نسخ
-            </button>
-        `;
-        msgDiv.appendChild(controlsTop);
-
-        const bubble = document.createElement("div");
-        bubble.className = "bubble";
-        bubble.innerHTML = htmlContent;
+        bubble.innerHTML = renderRichText(text);
         msgDiv.appendChild(bubble);
 
-        const metaDiv = document.createElement("div");
-        metaDiv.className = "meta";
-        metaDiv.innerHTML = `<span><svg class="modweeb-svg-h" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M8 8V6c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v2"></path><path d="M16 12H8"></path><path d="M21 17H3"></path><path d="M19 12h-4v8H19v-8z"></path></svg> Gemma AI</span>`;
-        msgDiv.appendChild(metaDiv);
-
         messagesContainer.appendChild(msgDiv);
-
-        if (!isRestore) {
-            scrollToBottom();
-        }
         return msgDiv;
     }
 
     function createAiPlaceholder() {
-        const msgDiv = createAiMessage("", false);
-        const bubble = msgDiv.querySelector(".bubble");
-        bubble.innerHTML = `<span class="placeholder-text">...جاري الكتابة</span>`;
-        return bubble;
-    }
+        let msgDiv = document.createElement("div");
+        msgDiv.className = "modweeb-msg-ai";
 
-    function markdownToHtml(md) {
-        // تحويل رؤوس النصوص
-        md = md.replace(/^### (.*$)/gim, '<b>$1</b>');
-        md = md.replace(/^## (.*$)/gim, '<b>$1</b>');
-        md = md.replace(/^# (.*$)/gim, '<b>$1</b>');
+        let bubble = document.createElement("div");
+        bubble.className = "bubble";
+        bubble.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><div class="spinner" aria-hidden="true"></div> جاري الكتابة...</div>`;
+        msgDiv.appendChild(bubble);
 
-        // تحويل القوائم المُرقمة
-        let olCounter = 1;
-        md = md.replace(/^(\d+\. |\* ) (.*$)/gim, (match, p1, p2) => {
-            if (p1.trim() === '*') {
-                return `<li>${p2}</li>`;
-            } else {
-                return `<li>${p2}</li>`;
-            }
-        });
-        md = md.replace(/(<li>.*<\/li>(\s*))+/gim, (match) => {
-            if (match.includes("1.")) { // يمكن أن يكون هذا غير دقيق، لكنه بسيط لتمييز القوائم
-                return `<ol>${match}</ol>`;
-            } else {
-                return `<ul>${match}</ul>`;
-            }
-        });
+        let controls = document.createElement("div");
+        controls.className = "modweeb-controls-top";
+        controls.innerHTML = `
+            <button class="copy-reply" title="نسخ الرد">
+                <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                    <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"></path>
+                    <rect width="10" height="10" x="8" y="2" rx="2"></rect>
+                </svg>
+            </button>
+            <button class="resend-retry" title="إعادة المحاولة" style="display:none">
+                <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                    <path d="M23 4v6h-6"></path>
+                    <path d="M1 20v-6h6"></path>
+                    <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"></path>
+                </svg>
+            </button>
+        `;
+        msgDiv.appendChild(controls);
 
-        // تحويل الخطوط العريضة والمائلة
-        md = md.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        md = md.replace(/\*(.*?)\*/g, '<em>$1</em>');
-        
-        // تحويل الروابط
-        md = md.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank">$1</a>');
-
-        // استبدال الأسطر الجديدة بـ <br>، ولكن ليس داخل القوائم
-        md = md.replace(/\n(?!<ol>|<ul|<li)/g, '<br>');
-
-        return md.trim();
-    }
-
-    function scrollToBottom() {
+        messagesContainer.appendChild(msgDiv);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        return msgDiv;
     }
 
-    function showStatus(text) {
-        statusUI.textContent = text;
-        statusUI.style.display = "block";
-        setTimeout(() => {
-            statusUI.style.display = "none";
-        }, 3000);
+    function buildConversationPayload(newMessage) {
+        let messages = [...messagesContainer.children];
+        let conversation = [
+            { role: "system", content: "أنت مساعد تقني لمدونة modweeb.com، أجِب بشكل مختصر وعملي واحترافي." }
+        ];
+
+        messages.forEach(msg => {
+            let isUser = msg.classList.contains("modweeb-msg-user");
+            let bubble = msg.querySelector(".bubble");
+            if (!bubble) return;
+            let content = bubble.innerText || bubble.textContent || "";
+            conversation.push({ role: isUser ? "user" : "assistant", content: content });
+        });
+
+        if (newMessage) {
+            conversation.push({ role: "user", content: newMessage });
+        }
+
+        return conversation;
     }
 
-    // --- منطق إرسال الرسالة ---
-    async function sendMessage(prompt, placeholderBubble) {
-        if (!prompt || isSending) return;
+    async function sendMessage(message, placeholder = null, isRetry = false) {
+        let isUnlimited = "1" === localStorage.getItem(DEV_FLAG_KEY);
+        if (!isUnlimited) {
+            let usage = loadUsage();
+            if (usage.count >= usage.limit) {
+                showStatus("تم تجاوز الحد اليومي للرسائل");
+                return false;
+            }
+        }
 
-        isSending = true;
-        sendBtn.disabled = true;
-        inputArea.disabled = true;
+        let aiMsg = placeholder || createAiPlaceholder();
+        showStatus("جاري إرسال الرسالة...");
+        modweebTrackEvent("chat_message_sent");
+
+        let conversation = buildConversationPayload(message);
 
         try {
-            const response = await fetch("https://api-inference.huggingface.co/models/" + HUGGING_FACE_MODEL, {
-                headers: { Authorization: `Bearer ${HUGGING_FACE_TOKEN}`, "Content-Type": "application/json" },
+            let response = await fetch("https://router.huggingface.co/v1/chat/completions", {
                 method: "POST",
-                body: JSON.stringify({ inputs: prompt }),
+                headers: {
+                    Authorization: `Bearer ${HUGGING_FACE_TOKEN}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    model: HUGGING_FACE_MODEL,
+                    messages: conversation,
+                    max_tokens: 1000,
+                    temperature: 0.7,
+                    top_p: 0.9
+                })
             });
 
-            const result = await response.json();
-            let aiText = "عذراً، حدث خطأ أثناء الاتصال بالذكاء الاصطناعي. قد تكون خدمة Hugging Face غير متاحة حالياً.";
+            if (!response.ok) throw Error("network");
 
-            if (result && result.length > 0 && result[0].generated_text) {
-                aiText = result[0].generated_text.trim();
-                // إزالة جزء الإدخال إذا كان الذكاء الاصطناعي يعيده في بداية النص
-                if (aiText.startsWith(prompt)) {
-                    aiText = aiText.substring(prompt.length).trim();
-                }
+            let data = await response.json();
+            let content = data?.choices?.[0]?.message?.content || "❌ حدث خطأ.";
+            let formattedContent = renderRichText(content);
+
+            let bubble = aiMsg.querySelector(".bubble");
+            if (bubble) {
+                bubble.innerHTML = formattedContent;
             }
 
-            placeholderBubble.innerHTML = markdownToHtml(aiText);
-
-            // تحديث الاستخدام وحفظ التاريخ فقط عند نجاح الرد
-            const isDev = "1" === localStorage.getItem(DEV_FLAG_KEY);
-            if (!isDev) {
-                const usage = loadUsage();
-                usage.count++;
-                saveUsage(usage);
-                refreshUsageUI();
+            let retryBtn = aiMsg.querySelector(".resend-retry");
+            if (retryBtn) {
+                retryBtn.style.display = "none";
             }
 
+            let usage = loadUsage();
+            usage.count = (usage.count || 0) + 1;
+            localStorage.setItem(USAGE_KEY, JSON.stringify(usage));
+
+            refreshUsageUI();
+            saveHistory();
+            showStatus("تم الرد بنجاح!");
+            modweebTrackEvent("chat_message_received", { tokens: data?.usage?.total_tokens || 0 });
+
+            return true;
         } catch (error) {
-            console.error("AI API Error:", error);
-            placeholderBubble.innerHTML = "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.";
-        } finally {
-            isSending = false;
-            sendBtn.disabled = false;
-            inputArea.disabled = false;
-            scrollToBottom();
-            saveHistory();
-        }
-    }
-
-
-    // --- منطق الحدث (Event Handlers) ---
-
-    // 4. دالة الإظهار والإخفاء المُعدَّلة (لاستخدام backdrop)
-    function toggleChat() {
-        const isOpen = widgetContainer.style.display === "block";
-        if (isOpen) {
-            widgetContainer.style.display = "none";
-            chatContainer.style.display = "none";
-            chatBtn.setAttribute("aria-label", "فتح الدردشة");
-        } else {
-            widgetContainer.style.display = "block";
-            chatContainer.style.display = "flex";
-            inputArea.focus();
-            scrollToBottom();
-            chatBtn.setAttribute("aria-label", "غلق الدردشة");
-        }
-    }
-
-    // 5. دالة ضبط الموضع عند فتح الكيبورد (إصلاح مشكلة التمرير)
-    function adjustForKeyboard() {
-        const viewportHeight = window.visualViewport.height;
-        const windowHeight = window.innerHeight;
-
-        // إذا كانت لوحة المفاتيح مفتوحة (بافتراض أن الفرق أكبر من 150 بكسل)
-        if (windowHeight - viewportHeight > 150) {
-            // رفع النافذة والزر إلى أسفل الشاشة
-            chatContainer.style.bottom = "10px";
-            chatBtn.style.bottom = "10px";
-            // يجب أن تبقى الخلفية (widgetContainer) ثابتة (full screen)
-        } else {
-            // إعادة الوضع الطبيعي
-            chatContainer.style.bottom = "142px"; // الموضع الطبيعي
-            chatBtn.style.bottom = "88px";      // الموضع الطبيعي
-        }
-    }
-
-
-    // --- ربط الأحداث ---
-
-    chatBtn.addEventListener("click", toggleChat);
-    closeBtn.addEventListener("click", toggleChat);
-    widgetContainer.addEventListener("click", (e) => {
-        if (e.target.id === "modweeb-widget-container") {
-            toggleChat();
-        }
-    });
-
-    sendBtn.addEventListener("click", async () => {
-        const text = inputArea.value.trim();
-        if (text) {
-            // التحقق من الحد اليومي
-            const isDev = "1" === localStorage.getItem(DEV_FLAG_KEY);
-            if (!isDev) {
-                const usage = loadUsage();
-                if (usage.count >= usage.limit) {
-                    showStatus("تم تجاوز الحد اليومي للرسائل");
-                    return;
-                }
+            let bubble = aiMsg.querySelector(".bubble");
+            if (bubble) {
+                bubble.innerHTML = `<div style="color:#ef4444;">❌ تعذر استجابة المساعد</div>`;
             }
 
-            createUserMessage(text);
-            inputArea.value = "";
-            inputArea.style.height = "auto";
-            charsUI.textContent = `0 أحرف`;
-            const placeholder = createAiPlaceholder();
+            let retryBtn = aiMsg.querySelector(".resend-retry");
+            if (retryBtn) {
+                retryBtn.style.display = "inline-block";
+                retryBtn.onclick = async function() {
+                    retryBtn.disabled = true;
+                    retryBtn.textContent = "...";
+                    bubble.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><div class="spinner"></div> إعادة المحاولة...</div>`;
+                    await sendMessage(message, aiMsg, true);
+                    retryBtn.disabled = false;
+                    retryBtn.textContent = "إعادة";
+                };
+            }
+
             saveHistory();
-            await sendMessage(text, placeholder);
+            showStatus("تعذر الاتصال بالخادم");
+            return false;
         }
+    }
+
+    function lazyLoadMessages() {
+        if (!messagesLoaded) {
+            let welcomeMsg = document.createElement("div");
+            welcomeMsg.className = "modweeb-msg-ai";
+
+            let bubble = document.createElement("div");
+            bubble.className = "bubble";
+            bubble.innerHTML = `👋 مرحبًا بك في دردشة <b>modweeb.com</b>! كيف أساعدك؟`;
+            welcomeMsg.appendChild(bubble);
+
+            let controls = document.createElement("div");
+            controls.className = "modweeb-controls-top";
+            controls.innerHTML = `
+                <button class="copy-reply" title="نسخ الرد">
+                    <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                        <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"></path>
+                        <rect width="10" height="10" x="8" y="2" rx="2"></rect>
+                    </svg>
+                </button>
+            `;
+            welcomeMsg.appendChild(controls);
+
+            messagesContainer.appendChild(welcomeMsg);
+            messagesLoaded = true;
+            modweebTrackEvent("chat_opened");
+            setTimeout(() => { messagesContainer.scrollTop = messagesContainer.scrollHeight; }, 100);
+        }
+    }
+
+    // Event Listeners
+    btn.onclick = function() {
+        widgetContainer.style.display = "block";
+        container.style.display = "flex";
+        container.style.position = "absolute";
+        container.style.left = "";
+        container.style.top = "";
+        container.style.right = "32px";
+        container.style.bottom = "142px";
+        lazyLoadMessages();
+        setTimeout(function() { inputArea.focus(); }, 100);
+        window.modweebChatOpenedAt = Date.now();
+        refreshUsageUI();
+        restoreHistory();
+    };
+
+    closeBtn.onclick = function() {
+        widgetContainer.style.display = "none";
+        container.style.display = "none";
+        container.style.position = "absolute";
+        container.style.left = "";
+        container.style.top = "";
+        container.style.right = "32px";
+        container.style.bottom = "142px";
+        if (window.modweebChatOpenedAt) {
+            modweebTrackEvent("chat_duration", { value: Date.now() - window.modweebChatOpenedAt });
+        }
+    };
+
+    widgetContainer.onclick = function(e) {
+        if (e.target === widgetContainer) {
+            widgetContainer.style.display = "none";
+            container.style.display = "none";
+        }
+    };
+
+    inputArea.addEventListener("input", function(e) {
+        e.target.style.height = "auto";
+        e.target.style.height = Math.min(e.target.scrollHeight, 62) + "px";
+        charsUI.textContent = `${e.target.value.length} أحرف`;
     });
 
-    inputArea.addEventListener("input", () => {
-        inputArea.style.height = "auto";
-        inputArea.style.height = inputArea.scrollHeight + "px";
-        charsUI.textContent = `${inputArea.value.length} أحرف`;
-    });
-
-    inputArea.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" && !e.shiftKey) {
+    inputArea.addEventListener("keydown", function(e) {
+        if (e.key === "Enter" && !e.shiftKey || (e.ctrlKey || e.metaKey) && e.key === "Enter") {
             e.preventDefault();
             sendBtn.click();
+            return;
+        }
+        if (e.key === "ArrowUp" && inputArea.value.trim() === "") {
+            let userMessages = [...messagesContainer.children].reverse();
+            let lastUserMsg = userMessages.find(msg => msg.classList.contains("modweeb-msg-user"));
+            if (lastUserMsg) {
+                let text = lastUserMsg.querySelector(".bubble").innerText || "";
+                inputArea.value = text;
+                inputArea.dispatchEvent(new Event("input"));
+            }
         }
     });
 
-    // أحداث أزرار الاقتراحات
-    suggestionBtns.forEach(btn => {
-        btn.addEventListener("click", () => {
+    document.addEventListener("keydown", function(e) {
+        if (e.key === "Escape") {
+            widgetContainer.style.display = "none";
+            container.style.display = "none";
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+            e.preventDefault();
+            widgetContainer.style.display = "block";
+            container.style.display = "flex";
+            setTimeout(() => inputArea.focus(), 100);
+        }
+    });
+
+    suggestions.forEach(btn => {
+        btn.onclick = () => {
             inputArea.value = btn.textContent;
-            inputArea.dispatchEvent(new Event('input'));
             inputArea.focus();
-        });
+            inputArea.dispatchEvent(new Event("input"));
+        };
     });
 
-    // حدث النقر على منطقة الرسائل (لتعديل/نسخ)
-    messagesContainer.addEventListener("click", (e) => {
-        const target = e.target.closest("button");
-        if (!target) return;
+    copyAllBtn.onclick = function() {
+        let allText = [...messagesContainer.children].map(msg => msg.innerText).join("\n");
+        navigator.clipboard.writeText(allText).then(() => showStatus("تم نسخ المحادثة!"));
+    };
 
-        const parentMsg = target.closest(".modweeb-msg-user") || target.closest(".modweeb-msg-ai");
-        if (!parentMsg) return;
+    clearBtn.onclick = function() {
+        localStorage.removeItem(HISTORY_KEY);
+        messagesContainer.innerHTML = "";
+        messagesLoaded = false;
+        lazyLoadMessages();
+        showStatus("تم حذف المحادثة!");
+    };
 
-        const rawText = parentMsg.getAttribute("data-raw-text");
-        
-        // منطق زر التعديل
-        if (target.classList.contains("edit-user")) {
-            inputArea.value = rawText;
-            inputArea.dispatchEvent(new Event('input'));
+    messagesContainer.addEventListener("click", function(e) {
+        let target = e.target;
+        if (target.closest(".copy-reply")) {
+            let aiMsg = target.closest(".modweeb-msg-ai");
+            if (!aiMsg) return;
+            let text = aiMsg.querySelector(".bubble").innerText || "";
+            navigator.clipboard.writeText(text).then(() => showStatus("تم نسخ الرد!"));
+        }
+        if (target.closest(".edit-user")) {
+            let userMsg = target.closest(".modweeb-msg-user");
+            if (!userMsg) return;
+            let text = userMsg.querySelector(".bubble").innerText || "";
+            inputArea.value = text;
             inputArea.focus();
-            parentMsg.remove(); // حذف الرسالة القديمة
-            saveHistory();
-
-        // منطق زر النسخ
-        } else if (target.classList.contains("copy-ai")) {
-            navigator.clipboard.writeText(rawText).then(() => {
-                target.textContent = "تم النسخ!";
-                setTimeout(() => target.innerHTML = `<svg class="modweeb-svg-h" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M15 7h4v13c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2V7c0-1.1.9-2 2-2h4"></path><path d="M18 1v4H9c-1.1 0-2 .9-2 2v10"></path></svg> نسخ`, 1500);
-            }).catch(err => {
-                console.error('Copy failed', err);
-            });
+            inputArea.dispatchEvent(new Event("input"));
         }
     });
 
-    // حدث زر نسخ الكل
-    copyAllBtn.addEventListener("click", () => {
-        let allText = "--- محادثة Gemma AI ---\n\n";
-        messagesContainer.querySelectorAll(".modweeb-msg-user, .modweeb-msg-ai").forEach(msgDiv => {
-            const type = msgDiv.classList.contains("modweeb-msg-user") ? "أنت" : "AI";
-            const rawText = msgDiv.getAttribute("data-raw-text");
-            allText += `${type}: ${rawText}\n\n`;
-        });
+    sendBtn.onclick = async function() {
+        let message = inputArea.value.trim();
+        if (!message) return;
 
-        navigator.clipboard.writeText(allText).then(() => {
-            showStatus("تم نسخ المحادثة بالكامل.");
-        });
-    });
+        let isUnlimited = "1" === localStorage.getItem(DEV_FLAG_KEY);
+        if (!isUnlimited) {
+            let usage = loadUsage();
+            if (usage.count >= usage.limit) {
+                showStatus("تم تجاوز الحد اليومي للرسائل");
+                return;
+            }
+        }
 
-    // حدث زر حذف المحادثة
-    clearBtn.addEventListener("click", clearHistory);
+        createUserMessage(message);
+        inputArea.value = "";
+        inputArea.style.height = "auto";
+        charsUI.textContent = `0 أحرف`;
 
+        let aiPlaceholder = createAiPlaceholder();
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        saveHistory();
+        await sendMessage(message, aiPlaceholder);
+    };
 
-    // تفعيل وضع المطور (خمس نقرات على الرأس)
+    // Initialize
+    restoreHistory();
+    refreshUsageUI();
+
     let headerClickCount = 0;
     let headerClickTimer = null;
+
+    function modweebTrackEvent(event, params) {
+        window.gtag && gtag("event", event, params || {});
+    }
+
+    function adjustForKeyboard() {
+        let viewportHeight = window.visualViewport.height;
+        let windowHeight = window.innerHeight;
+        if (windowHeight - viewportHeight > 150) {
+            container.style.bottom = "10px";
+            btn.style.bottom = "10px";
+        } else {
+            container.style.bottom = "142px";
+            btn.style.bottom = "88px";
+        }
+    }
+
     head.addEventListener("click", function(e) {
         headerClickCount++;
         if (headerClickTimer) clearTimeout(headerClickTimer);
-        headerClickTimer = setTimeout(() => {
-            headerClickCount = 0;
-        }, 4000);
-
+        headerClickTimer = setTimeout(() => { headerClickCount = 0; }, 4000);
         if (headerClickCount >= 5) {
             headerClickCount = 0;
-            const isDev = "1" === localStorage.getItem(DEV_FLAG_KEY);
-            if (isDev) {
+            let isUnlimited = "1" === localStorage.getItem(DEV_FLAG_KEY);
+            if (isUnlimited) {
                 localStorage.removeItem(DEV_FLAG_KEY);
-                showStatus("وضع المطور معطل.");
+                showStatus("وضع المطور معطل");
             } else {
                 localStorage.setItem(DEV_FLAG_KEY, "1");
-                showStatus("وضع المطور مفعل: غير محدود.");
+                showStatus("وضع المطور مفعل: غير محدود");
             }
             refreshUsageUI();
         }
     });
 
-    // تفعيل رصد تغيرات الكيبورد الافتراضية
+    messagesContainer.style.minHeight = "60px";
     window.visualViewport.addEventListener("resize", adjustForKeyboard);
-    // تفعيل رصد التمرير خارج منطقة الدردشة (في حال وجود مشكلة)
     window.visualViewport.addEventListener("scroll", adjustForKeyboard);
-
-
-    // --- الإعداد الأولي ---
-    restoreHistory();
-    refreshUsageUI();
 }
