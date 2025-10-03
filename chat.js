@@ -1,10 +1,12 @@
 function modweebChat(options) {
     const HUGGING_FACE_TOKEN = options.config.hfToken;
     const HUGGING_FACE_MODEL = options.config.hfModel;
-    const USAGE_KEY = "modweebChatUsage_v1";
-    const HISTORY_KEY = "modweebChatHistory_v1";
-    const DEV_FLAG_KEY = "modweebDevUnlimited_v1";
+    const USAGE_KEY = "modweebChatUsage_v1",
+        HISTORY_KEY = "modweebChatHistory_v1",
+        DEFAULT_DAILY_LIMIT = 25,
+        DEV_FLAG_KEY = "modweebDevUnlimited_v1";
 
+    // 1. **إنشاء وحقن الهيكل HTML بالكامل في جسم الصفحة**
     const WIDGET_HTML = `
         <button id="modweeb-chat-btn" type="button" class="modweeb-chat-btn" aria-label="فتح الدردشة" title="ابدأ دردشة AI">
             <svg class="modweeb-svg-btn-n" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -42,8 +44,6 @@ function modweebChat(options) {
                 <div class="modweeb-suggestions" aria-hidden="false">
                     <button class="modweeb-suggestion-btn">كيف أحسن سرعة مدونتي؟</button>
                     <button class="modweeb-suggestion-btn">ما أفضل إضافات SEO؟</button>
-                    <button class="modweeb-suggestion-btn">كيف أزيد زوار مدونتي؟</button>
-                    <button class="modweeb-suggestion-btn">نصائح لتحسين المحتوى</button>
                 </div>
                 <div id="modweeb-messages" aria-live="polite"></div>
                 <div class="modweeb-input-wrap">
@@ -74,13 +74,15 @@ function modweebChat(options) {
         </div>
     `;
 
-    const tempDiv = document.createElement("div");
+    const tempDiv = document.createElement('div');
     tempDiv.innerHTML = WIDGET_HTML;
-    for (; tempDiv.firstChild;) document.body.appendChild(tempDiv.firstChild);
+    while (tempDiv.firstChild) {
+        document.body.appendChild(tempDiv.firstChild);
+    }
 
+    // 2. **تعريف المتغيرات بعد الإنشاء**
     const btn = document.getElementById("modweeb-chat-btn");
     const container = document.getElementById("modweeb-chat-container");
-    const widgetContainer = document.getElementById("modweeb-widget-container");
     const messagesContainer = document.getElementById("modweeb-messages");
     const statusDiv = document.getElementById("modweeb-status");
     const inputArea = document.getElementById("modweeb-input");
@@ -92,274 +94,165 @@ function modweebChat(options) {
     const clearBtn = document.getElementById("modweeb-clear");
     const suggestions = document.querySelectorAll(".modweeb-suggestion-btn");
 
-    function escapeHtml(text) {
-        return text ? text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;") : "";
+    // 3. **وظائف مساعدة**
+    function escapeHtml(e) {
+        return e ? e.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;") : ""
     }
 
-    function isSafeUrl(url) {
+    function isSafeUrl(e) {
         try {
-            let u = new URL(url, location.href);
-            return "https:" === u.protocol || "http:" === u.protocol;
+            let t = new URL(e, location.href);
+            return "https:" === t.protocol || "http:" === t.protocol
         } catch (n) {
-            return !1;
+            return !1
         }
     }
 
-    function renderRichText(text) {
-        let escaped = escapeHtml(text);
-        escaped = escaped.replace(/^#{1,6}\s+(.*)$/gm, (match, title) => 
-            `<b style="display:block; margin:15px 0 8px 0; color:var(--linkC, #2563eb);">${title.trim()}</b>`
-        );
-
-        let listCounter = 0;
-        escaped = escaped.replace(/^[*\-]\s+(.*)$/gm, (match, item) => {
-            listCounter++;
-            const arabicNumber = listCounter <= 10 ? ["١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩", "١٠"][listCounter - 1] : listCounter + ".";
-            return `${arabicNumber} ${item.trim()}<br>`;
-        });
-
-        // Continue with other replacements...
-        escaped = escaped
-            .replace(/(?<!\w)[*#](?!\w)/g, "")
-            .replace(/\*\*/g, "")
-            .replace(/\*/g, "")
-            .replace(/!\[([^\]]*?)\]\((.*?)\)/g, (match, alt, url) => 
-                isSafeUrl(url.trim()) ? 
-                    `<img src="${url.trim()}" alt="${escapeHtml(alt)}" loading="lazy" style="max-width:100%; height:auto; border-radius:8px; margin:8px 0;">` : 
-                    escapeHtml(match)
-            )
-            .replace(/\[([^\]]+)\]\((.*?)\)/g, (match, text, url) => 
-                isSafeUrl(url.trim()) ? 
-                    `<a href="${url.trim()}" target="_blank" rel="noopener noreferrer" style="color:var(--linkC, #2563eb); text-decoration:underline;">${escapeHtml(text)}</a>` : 
-                    escapeHtml(match)
-            )
-            .replace(/`([^`]+)`/g, (match, code) => 
-                `<code style="background:var(--contentBa, #f4f8ff); padding:2px 6px; border-radius:4px; border:1px solid var(--contentL, #e3e7ef);">${escapeHtml(code)}</code>`
-            )
-            .replace(/\*\*(.*?)\*\*/g, (match, bold) => 
-                `<b style="font-weight:600;">${escapeHtml(bold)}</b>`
-            )
-            .replace(/\*(.*?)\*/g, (match, italic) => 
-                `<i style="font-style:italic;">${escapeHtml(italic)}</i>`
-            )
-            .replace(/(^|\s)(https?:\/\/\S+\.(?:png|jpe?g|gif|webp|bmp))(?![^<]*>)/gi, (match, space, url) => 
-                isSafeUrl(url) ? 
-                    `${space}<img src="${url}" loading="lazy" style="max-width:100%; height:auto; border-radius:8px; margin:8px 0;">` : 
-                    match
-            )
-            .replace(/(^|\s)(https?:\/\/[^\s<]+)/g, (match, space, url) => 
-                isSafeUrl(url) ? 
-                    `${space}<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:var(--linkC, #2563eb); text-decoration:underline;">${escapeHtml(url)}</a>` : 
-                    match
-            )
-            .replace(/\n\n+/g, "<br><br>")
-            .replace(/\n/g, "<br>")
-            .replace(/(<br>){3,}/g, "<br><br>");
-
-        return escaped;
+    function renderRichText(e) {
+        let t = escapeHtml(e);
+        t = t.replace(/^#{1,6}\s+(.*)$/gm, (e, t) => `<b style="display:block; margin:15px 0 8px 0; color:var(--linkC, #2563eb);">${t.trim()}</b>`);
+        let n = 0;
+        return (t = (t = (t = (t = (t = (t = (t = (t = (t = (t = (t = (t = (t = t.replace(/^[*\-]\s+(.*)$/gm, (e, t) => {
+            n++;
+            let s = n <= 10 ? ["١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩", "١٠"][n - 1] : n + ".";
+            return `${s} ${t.trim()}<br>`
+        })).replace(/(?<!\w)[*#](?!\w)/g, "")).replace(/\*\*/g, "")).replace(/\*/g, "")).replace(/!\[([^\]]*?)\]\((.*?)\)/g, (e, t, n) => isSafeUrl(n.trim()) ? `<img src="${n.trim()}" alt="${escapeHtml(t)}" loading="lazy" style="max-width:100%; height:auto; border-radius:8px; margin:8px 0;">` : escapeHtml(e))).replace(/\[([^\]]+)\]\((.*?)\)/g, (e, t, n) => isSafeUrl(n.trim()) ? `<a href="${n.trim()}" target="_blank" rel="noopener noreferrer" style="color:var(--linkC, #2563eb); text-decoration:underline;">${escapeHtml(t)}</a>` : escapeHtml(e))).replace(/`([^`]+)`/g, (e, t) => `<code style="background:var(--contentBa, #f4f8ff); padding:2px 6px; border-radius:4px; border:1px solid var(--contentL, #e3e7ef);">${escapeHtml(t)}</code>`)).replace(/\*\*(.*?)\*\*/g, (e, t) => `<b style="font-weight:600;">${escapeHtml(t)}</b>`)).replace(/\*(.*?)\*/g, (e, t) => `<i style="font-style:italic;">${escapeHtml(t)}</i>`)).replace(/(^|\s)(https?:\/\/\S+\.(?:png|jpe?g|gif|webp|bmp))(?![^<]*>)/gi, (e, t, n) => isSafeUrl(n) ? `${t}<img src="${n}" loading="lazy" style="max-width:100%; height:auto; border-radius:8px; margin:8px 0;">` : e)).replace(/(^|\s)(https?:\/\/[^\s<]+)/g, (e, t, n) => isSafeUrl(n) ? `${t}<a href="${n}" target="_blank" rel="noopener noreferrer" style="color:var(--linkC, #2563eb); text-decoration:underline;">${escapeHtml(n)}</a>` : e)).replace(/\n\n+/g, "<br><br>")).replace(/\n/g, "<br>")).replace(/(<br>){3,}/g, "<br><br>")
     }
 
     function loadUsage() {
         try {
-            let usage = localStorage.getItem(USAGE_KEY);
-            if (!usage) return initUsage();
-            let data = JSON.parse(usage);
-            let today = new Date().toISOString().slice(0, 10);
-            if (data.date !== today) return initUsage();
-            return data;
-        } catch (err) {
-            return initUsage();
+            let e = localStorage.getItem(USAGE_KEY);
+            if (!e) return initUsage();
+            let t = JSON.parse(e),
+                n = new Date().toISOString().slice(0, 10);
+            if (t.date !== n) return initUsage();
+            return t
+        } catch (s) {
+            return initUsage()
         }
     }
 
     function initUsage() {
-        let today = new Date().toISOString().slice(0, 10);
-        let usage = { date: today, count: 0, limit: 25 };
-        localStorage.setItem(USAGE_KEY, JSON.stringify(usage));
-        return usage;
+        let e = new Date().toISOString().slice(0, 10),
+            t = {
+                date: e,
+                count: 0,
+                limit: 25
+            };
+        return localStorage.setItem(USAGE_KEY, JSON.stringify(t)), t
+    }
+
+    function saveUsage(e) {
+        localStorage.setItem(USAGE_KEY, JSON.stringify(e))
     }
 
     function remainingMessages() {
-        let isUnlimited = "1" === localStorage.getItem(DEV_FLAG_KEY);
-        if (isUnlimited) return Infinity;
-        let usage = loadUsage();
-        return Math.max(0, usage.limit - usage.count);
+        let e = "1" === localStorage.getItem(DEV_FLAG_KEY);
+        if (e) return 1 / 0;
+        let t = loadUsage();
+        return Math.max(0, t.limit - t.count)
     }
 
     function refreshUsageUI() {
-        let remaining = remainingMessages();
-        document.getElementById("modweeb-remaining").textContent = 
-            remaining === Infinity ? "غير محدود" : `الرسائل المتبقية: ${remaining}`;
+        let e = remainingMessages();
+        document.getElementById("modweeb-remaining").textContent = e === 1 / 0 ? "غير محدود" : `الرسائل المتبقية: ${e}`
     }
-
-    let messagesLoaded = false;
+    let messagesLoaded = !1;
 
     function saveHistory() {
         try {
-            let messages = [...messagesContainer.children];
-            let history = messages.map(msg => ({
-                role: msg.classList.contains("modweeb-msg-user") ? "user" : "assistant",
-                html: msg.querySelector(".bubble") ? msg.querySelector(".bubble").innerHTML : msg.innerHTML
-            }));
-            localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-        } catch (err) {}
+            let e = [...messagesContainer.children],
+                t = e.map(e => ({
+                    role: e.classList.contains("modweeb-msg-user") ? "user" : "assistant",
+                    html: e.querySelector(".bubble") ? e.querySelector(".bubble").innerHTML : e.innerHTML
+                }));
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(t))
+        } catch (n) {}
     }
 
     function restoreHistory() {
         try {
-            let history = localStorage.getItem(HISTORY_KEY);
-            if (!history) return;
-            let messages = JSON.parse(history);
-            messagesContainer.innerHTML = "";
-            messages.forEach(msgData => {
-                let msgDiv = document.createElement("div");
-                if (msgData.role === "user") {
-                    msgDiv.className = "modweeb-msg-user";
-                } else {
-                    msgDiv.className = "modweeb-msg-ai";
+            let e = localStorage.getItem(HISTORY_KEY);
+            if (!e) return;
+            let t = JSON.parse(e);
+            messagesContainer.innerHTML = "", t.forEach(e => {
+                let t = document.createElement("div");
+                "user" === e.role ? t.className = "modweeb-msg-user" : t.className = "modweeb-msg-ai";
+                let s = document.createElement("div");
+                if (s.className = "bubble", s.innerHTML = e.html, t.appendChild(s), "assistant" === e.role) {
+                    let a = document.createElement("div");
+                    a.className = "meta", a.innerHTML = `<div class="msg-controls">
+              <button class="copy-reply" title="نسخ الرد">نسخ</button>
+            </div>`, t.appendChild(a)
                 }
-
-                let bubble = document.createElement("div");
-                bubble.className = "bubble";
-                bubble.innerHTML = msgData.html;
-                msgDiv.appendChild(bubble);
-
-                // Add control buttons
-                let controls = document.createElement("div");
-                controls.className = "modweeb-controls-top";
-                
-                if (msgData.role === "user") {
-                    controls.innerHTML = `
-                        <button class="edit-user" title="تعديل">
-                            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                                <path d="M12 20h9"></path>
-                                <path d="M16.5 3.5l4 4L7 20H3v-4L16.5 3.5z"></path>
-                            </svg>
-                        </button>
-                    `;
-                } else {
-                    controls.innerHTML = `
-                        <button class="copy-reply" title="نسخ الرد">
-                            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                                <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"></path>
-                                <rect width="10" height="10" x="8" y="2" rx="2"></rect>
-                            </svg>
-                        </button>
-                    `;
-                }
-                msgDiv.appendChild(controls);
-                messagesContainer.appendChild(msgDiv);
-            });
-            messagesLoaded = true;
-            setTimeout(() => { messagesContainer.scrollTop = messagesContainer.scrollHeight; }, 100);
-        } catch (err) {}
+                messagesContainer.appendChild(t)
+            }), messagesLoaded = !0, setTimeout(() => {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight
+            }, 100)
+        } catch (s) {}
     }
 
-    function showStatus(message, duration = 1600) {
-        statusDiv.style.display = "block";
-        statusDiv.textContent = message;
-        if (duration > 0) {
-            setTimeout(() => { statusDiv.style.display = "none"; }, duration);
-        }
+    function showStatus(e, t = 1600) {
+        statusDiv.style.display = "block", statusDiv.textContent = e, t > 0 && setTimeout(() => {
+            statusDiv.style.display = "none"
+        }, t)
     }
 
-    function createUserMessage(text) {
-        let msgDiv = document.createElement("div");
-        msgDiv.className = "modweeb-msg-user";
-
-        let controls = document.createElement("div");
-        controls.className = "modweeb-controls-top";
-        controls.innerHTML = `
-            <button class="edit-user" title="تعديل">
-                <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                    <path d="M12 20h9"></path>
-                    <path d="M16.5 3.5l4 4L7 20H3v-4L16.5 3.5z"></path>
-                </svg>
-            </button>
-        `;
-        msgDiv.appendChild(controls);
-
-        let bubble = document.createElement("div");
-        bubble.className = "bubble";
-        bubble.innerHTML = renderRichText(text);
-        msgDiv.appendChild(bubble);
-
-        messagesContainer.appendChild(msgDiv);
-        return msgDiv;
+    function createUserMessage(e) {
+        let t = document.createElement("div");
+        t.className = "modweeb-msg-user";
+        let n = document.createElement("div");
+        n.className = "bubble", n.innerHTML = renderRichText(e), t.appendChild(n);
+        let s = document.createElement("div");
+        return s.className = "meta", s.innerHTML = `<div class="msg-controls">
+        <button class="edit-user" title="تعديل">✎</button>
+      </div>`, t.appendChild(s), messagesContainer.appendChild(t), t
     }
 
     function createAiPlaceholder() {
-        let msgDiv = document.createElement("div");
-        msgDiv.className = "modweeb-msg-ai";
-
-        let bubble = document.createElement("div");
-        bubble.className = "bubble";
-        bubble.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><div class="spinner" aria-hidden="true"></div> جاري الكتابة...</div>`;
-        msgDiv.appendChild(bubble);
-
-        let controls = document.createElement("div");
-        controls.className = "modweeb-controls-top";
-        controls.innerHTML = `
-            <button class="copy-reply" title="نسخ الرد">
-                <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                    <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"></path>
-                    <rect width="10" height="10" x="8" y="2" rx="2"></rect>
-                </svg>
-            </button>
-            <button class="resend-retry" title="إعادة المحاولة" style="display:none">
-                <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                    <path d="M23 4v6h-6"></path>
-                    <path d="M1 20v-6h6"></path>
-                    <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"></path>
-                </svg>
-            </button>
-        `;
-        msgDiv.appendChild(controls);
-
-        messagesContainer.appendChild(msgDiv);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        return msgDiv;
+        let e = document.createElement("div");
+        e.className = "modweeb-msg-ai";
+        let t = document.createElement("div");
+        t.className = "bubble", t.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><div class="spinner" aria-hidden="true"></div> جاري الكتابة...</div>`, e.appendChild(t);
+        let n = document.createElement("div");
+        return n.className = "meta", n.innerHTML = `<div class="msg-controls">
+        <button class="copy-reply" title="نسخ الرد">نسخ</button>
+        <button class="resend-retry" title="إعادة المحاولة" style="display:none">إعادة</button>
+      </div>`, e.appendChild(n), messagesContainer.appendChild(e), messagesContainer.scrollTop = messagesContainer.scrollHeight, e
     }
 
-    function buildConversationPayload(newMessage) {
-        let messages = [...messagesContainer.children];
-        let conversation = [
-            { role: "system", content: "أنت مساعد تقني لمدونة modweeb.com، أجِب بشكل مختصر وعملي واحترافي." }
-        ];
-
-        messages.forEach(msg => {
-            let isUser = msg.classList.contains("modweeb-msg-user");
-            let bubble = msg.querySelector(".bubble");
-            if (!bubble) return;
-            let content = bubble.innerText || bubble.textContent || "";
-            conversation.push({ role: isUser ? "user" : "assistant", content: content });
-        });
-
-        if (newMessage) {
-            conversation.push({ role: "user", content: newMessage });
-        }
-
-        return conversation;
+    function buildConversationPayload(e) {
+        let t = [...messagesContainer.children],
+            n = [{
+                role: "system",
+                content: "أنت مساعد تقني لمدونة modweeb.com، أجِب بشكل مختصر وعملي واحترافي."
+            }];
+        return t.forEach(e => {
+            let t = e.classList.contains("modweeb-msg-user"),
+                s = e.querySelector(".bubble");
+            if (!s) return;
+            let a = s.innerText || s.textContent || "";
+            n.push({
+                role: t ? "user" : "assistant",
+                content: a
+            })
+        }), e && n.push({
+            role: "user",
+            content: e
+        }), n
     }
 
-    async function sendMessage(message, placeholder = null, isRetry = false) {
-        let isUnlimited = "1" === localStorage.getItem(DEV_FLAG_KEY);
-        if (!isUnlimited) {
-            let usage = loadUsage();
-            if (usage.count >= usage.limit) {
-                showStatus("تم تجاوز الحد اليومي للرسائل");
-                return false;
-            }
+    async function sendMessage(e, t = null, n = !1) {
+        let s = "1" === localStorage.getItem(DEV_FLAG_KEY);
+        if (!s) {
+            let a = loadUsage();
+            if (a.count >= a.limit) return showStatus("تم تجاوز الحد اليومي للرسائل"), !1
         }
-
-        let aiMsg = placeholder || createAiPlaceholder();
-        showStatus("جاري إرسال الرسالة...");
-        modweebTrackEvent("chat_message_sent");
-
-        let conversation = buildConversationPayload(message);
-
+        let l = t || createAiPlaceholder();
+        showStatus("جاري إرسال الرسالة..."), modweebTrackEvent("chat_message_sent");
+        let r = buildConversationPayload(e);
         try {
-            let response = await fetch("https://router.huggingface.co/v1/chat/completions", {
+            let o = await fetch("https://router.huggingface.co/v1/chat/completions", {
                 method: "POST",
                 headers: {
                     Authorization: `Bearer ${HUGGING_FACE_TOKEN}`,
@@ -367,270 +260,136 @@ function modweebChat(options) {
                 },
                 body: JSON.stringify({
                     model: HUGGING_FACE_MODEL,
-                    messages: conversation,
-                    max_tokens: 1000,
-                    temperature: 0.7,
-                    top_p: 0.9
+                    messages: r,
+                    max_tokens: 1e3,
+                    temperature: .7,
+                    top_p: .9
                 })
             });
-
-            if (!response.ok) throw Error("network");
-
-            let data = await response.json();
-            let content = data?.choices?.[0]?.message?.content || "❌ حدث خطأ.";
-            let formattedContent = renderRichText(content);
-
-            let bubble = aiMsg.querySelector(".bubble");
-            if (bubble) {
-                bubble.innerHTML = formattedContent;
-            }
-
-            let retryBtn = aiMsg.querySelector(".resend-retry");
-            if (retryBtn) {
-                retryBtn.style.display = "none";
-            }
-
-            let usage = loadUsage();
-            usage.count = (usage.count || 0) + 1;
-            localStorage.setItem(USAGE_KEY, JSON.stringify(usage));
-
-            refreshUsageUI();
-            saveHistory();
-            showStatus("تم الرد بنجاح!");
-            modweebTrackEvent("chat_message_received", { tokens: data?.usage?.total_tokens || 0 });
-
-            return true;
-        } catch (error) {
-            let bubble = aiMsg.querySelector(".bubble");
-            if (bubble) {
-                bubble.innerHTML = `<div style="color:#ef4444;">❌ تعذر استجابة المساعد</div>`;
-            }
-
-            let retryBtn = aiMsg.querySelector(".resend-retry");
-            if (retryBtn) {
-                retryBtn.style.display = "inline-block";
-                retryBtn.onclick = async function() {
-                    retryBtn.disabled = true;
-                    retryBtn.textContent = "...";
-                    bubble.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><div class="spinner"></div> إعادة المحاولة...</div>`;
-                    await sendMessage(message, aiMsg, true);
-                    retryBtn.disabled = false;
-                    retryBtn.textContent = "إعادة";
-                };
-            }
-
-            saveHistory();
-            showStatus("تعذر الاتصال بالخادم");
-            return false;
+            if (!o.ok) throw Error("network");
+            let i = await o.json(),
+                c = i ?. choices ?. [0] ?. message ?. content || "❌ حدث خطأ.",
+                d = renderRichText(c),
+                m = l.querySelector(".bubble");
+            m && (m.innerHTML = d);
+            let g = l.querySelector(".resend-retry");
+            g && (g.style.display = "none");
+            let u = loadUsage();
+            return u.count = (u.count || 0) + 1, saveUsage(u), refreshUsageUI(), saveHistory(), showStatus("تم الرد بنجاح!"), modweebTrackEvent("chat_message_received", {
+                tokens: i ?. usage ?. total_tokens || 0
+            }), !0
+        } catch (p) {
+            let y = l.querySelector(".bubble");
+            y && (y.innerHTML = `<div style="color:#ef4444;">❌ تعذر استجابة المساعد</div>`);
+            let b = l.querySelector(".resend-retry");
+            return b && (b.style.display = "inline-block", b.onclick = async function() {
+                b.disabled = !0, b.textContent = "...", y.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><div class="spinner"></div> إعادة المحاولة...</div>`, await sendMessage(e, l, !0), b.disabled = !1, b.textContent = "إعادة"
+            }), saveHistory(), showStatus("تعذر الاتصال بالخادم"), !1
         }
     }
 
     function lazyLoadMessages() {
         if (!messagesLoaded) {
-            let welcomeMsg = document.createElement("div");
-            welcomeMsg.className = "modweeb-msg-ai";
-
-            let bubble = document.createElement("div");
-            bubble.className = "bubble";
-            bubble.innerHTML = `👋 مرحبًا بك في دردشة <b>modweeb.com</b>! كيف أساعدك؟`;
-            welcomeMsg.appendChild(bubble);
-
-            let controls = document.createElement("div");
-            controls.className = "modweeb-controls-top";
-            controls.innerHTML = `
-                <button class="copy-reply" title="نسخ الرد">
-                    <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                        <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"></path>
-                        <rect width="10" height="10" x="8" y="2" rx="2"></rect>
-                    </svg>
-                </button>
-            `;
-            welcomeMsg.appendChild(controls);
-
-            messagesContainer.appendChild(welcomeMsg);
-            messagesLoaded = true;
-            modweebTrackEvent("chat_opened");
-            setTimeout(() => { messagesContainer.scrollTop = messagesContainer.scrollHeight; }, 100);
+            let e = document.createElement("div");
+            e.className = "modweeb-msg-ai";
+            let t = document.createElement("div");
+            t.className = "bubble", t.innerHTML = `👋 مرحبًا بك في دردشة <b>modweeb.com</b>! كيف أساعدك؟`, e.appendChild(t);
+            let n = document.createElement("div");
+            n.className = "meta", n.innerHTML = `<div class="msg-controls"><button class="copy-reply" title="نسخ الرد">نسخ</button></div>`, e.appendChild(n), messagesContainer.appendChild(e), messagesLoaded = !0, modweebTrackEvent("chat_opened"), setTimeout(() => {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight
+            }, 100)
         }
     }
 
-    // Event Listeners
+    // 4. **تعديل الـ Event Listeners**
     btn.onclick = function() {
-        widgetContainer.style.display = "block";
-        container.style.display = "flex";
-        container.style.position = "absolute";
-        container.style.left = "";
-        container.style.top = "";
-        container.style.right = "32px";
-        container.style.bottom = "142px";
-        lazyLoadMessages();
-        setTimeout(function() { inputArea.focus(); }, 100);
-        window.modweebChatOpenedAt = Date.now();
-        refreshUsageUI();
-        restoreHistory();
-    };
-
-    closeBtn.onclick = function() {
-        widgetContainer.style.display = "none";
-        container.style.display = "none";
-        container.style.position = "absolute";
-        container.style.left = "";
-        container.style.top = "";
-        container.style.right = "32px";
-        container.style.bottom = "142px";
-        if (window.modweebChatOpenedAt) {
-            modweebTrackEvent("chat_duration", { value: Date.now() - window.modweebChatOpenedAt });
-        }
-    };
-
-    widgetContainer.onclick = function(e) {
-        if (e.target === widgetContainer) {
-            widgetContainer.style.display = "none";
-            container.style.display = "none";
-        }
+        container.style.display = "flex", container.style.position = "fixed", container.style.left = "", container.style.top = "", container.style.right = "32px", container.style.bottom = "142px", lazyLoadMessages(), setTimeout(function() {
+            inputArea.focus()
+        }, 100), window.modweebChatOpenedAt = Date.now(), refreshUsageUI(), restoreHistory()
+    }, closeBtn.onclick = function() {
+        container.style.display = "none", container.style.position = "fixed", container.style.left = "", container.style.top = "", container.style.right = "32px", container.style.bottom = "142px", window.modweebChatOpenedAt && modweebTrackEvent("chat_duration", {
+            value: Date.now() - window.modweebChatOpenedAt
+        })
     };
 
     inputArea.addEventListener("input", function(e) {
-        e.target.style.height = "auto";
-        e.target.style.height = Math.min(e.target.scrollHeight, 62) + "px";
-        charsUI.textContent = `${e.target.value.length} أحرف`;
-    });
-
-    inputArea.addEventListener("keydown", function(e) {
-        if (e.key === "Enter" && !e.shiftKey || (e.ctrlKey || e.metaKey) && e.key === "Enter") {
-            e.preventDefault();
-            sendBtn.click();
-            return;
+        e.target.style.height = "auto", e.target.style.height = Math.min(e.target.scrollHeight, 62) + "px", charsUI.textContent = `${e.target.value.length} أحرف`
+    }), inputArea.addEventListener("keydown", function(e) {
+        if ("Enter" === e.key && !e.shiftKey || (e.ctrlKey || e.metaKey) && "Enter" === e.key) {
+            e.preventDefault(), sendBtn.click();
+            return
         }
-        if (e.key === "ArrowUp" && inputArea.value.trim() === "") {
-            let userMessages = [...messagesContainer.children].reverse();
-            let lastUserMsg = userMessages.find(msg => msg.classList.contains("modweeb-msg-user"));
-            if (lastUserMsg) {
-                let text = lastUserMsg.querySelector(".bubble").innerText || "";
-                inputArea.value = text;
-                inputArea.dispatchEvent(new Event("input"));
+        if ("ArrowUp" === e.key && "" === inputArea.value.trim()) {
+            let t = [...messagesContainer.children].reverse(),
+                n = t.find(e => e.classList.contains("modweeb-msg-user"));
+            if (n) {
+                let s = n.querySelector(".bubble").innerText || "";
+                inputArea.value = s, inputArea.dispatchEvent(new Event("input"))
             }
         }
-    });
-
-    document.addEventListener("keydown", function(e) {
-        if (e.key === "Escape") {
-            widgetContainer.style.display = "none";
-            container.style.display = "none";
+    }), document.addEventListener("keydown", function(e) {
+        "Escape" === e.key && (container.style.display = "none"), (e.ctrlKey || e.metaKey) && "k" === e.key.toLowerCase() && (e.preventDefault(), container.style.display = "flex", setTimeout(() => inputArea.focus(), 100))
+    }), suggestions.forEach(e => {
+        e.onclick = () => {
+            inputArea.value = e.textContent, inputArea.focus(), inputArea.dispatchEvent(new Event("input"))
         }
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-            e.preventDefault();
-            widgetContainer.style.display = "block";
-            container.style.display = "flex";
-            setTimeout(() => inputArea.focus(), 100);
+    }), copyAllBtn.onclick = function() {
+        let e = [...messagesContainer.children].map(e => e.innerText).join("\n");
+        navigator.clipboard.writeText(e).then(() => showStatus("تم نسخ المحادثة!"))
+    }, clearBtn.onclick = function() {
+        localStorage.removeItem(HISTORY_KEY), messagesContainer.innerHTML = "", messagesLoaded = !1, lazyLoadMessages(), showStatus("تم حذف المحادثة!")
+    }, messagesContainer.addEventListener("click", function(e) {
+        let t = e.target;
+        if (t.closest(".copy-reply")) {
+            let n = t.closest(".modweeb-msg-ai");
+            if (!n) return;
+            let s = n.querySelector(".bubble").innerText || "";
+            navigator.clipboard.writeText(s).then(() => showStatus("تم نسخ الرد!"))
         }
-    });
-
-    suggestions.forEach(btn => {
-        btn.onclick = () => {
-            inputArea.value = btn.textContent;
-            inputArea.focus();
-            inputArea.dispatchEvent(new Event("input"));
-        };
-    });
-
-    copyAllBtn.onclick = function() {
-        let allText = [...messagesContainer.children].map(msg => msg.innerText).join("\n");
-        navigator.clipboard.writeText(allText).then(() => showStatus("تم نسخ المحادثة!"));
-    };
-
-    clearBtn.onclick = function() {
-        localStorage.removeItem(HISTORY_KEY);
-        messagesContainer.innerHTML = "";
-        messagesLoaded = false;
-        lazyLoadMessages();
-        showStatus("تم حذف المحادثة!");
-    };
-
-    messagesContainer.addEventListener("click", function(e) {
-        let target = e.target;
-        if (target.closest(".copy-reply")) {
-            let aiMsg = target.closest(".modweeb-msg-ai");
-            if (!aiMsg) return;
-            let text = aiMsg.querySelector(".bubble").innerText || "";
-            navigator.clipboard.writeText(text).then(() => showStatus("تم نسخ الرد!"));
+        if (t.closest(".edit-user")) {
+            let a = t.closest(".modweeb-msg-user");
+            if (!a) return;
+            let l = a.querySelector(".bubble").innerText || "";
+            inputArea.value = l, inputArea.focus(), inputArea.dispatchEvent(new Event("input"))
         }
-        if (target.closest(".edit-user")) {
-            let userMsg = target.closest(".modweeb-msg-user");
-            if (!userMsg) return;
-            let text = userMsg.querySelector(".bubble").innerText || "";
-            inputArea.value = text;
-            inputArea.focus();
-            inputArea.dispatchEvent(new Event("input"));
-        }
-    });
-
-    sendBtn.onclick = async function() {
-        let message = inputArea.value.trim();
-        if (!message) return;
-
-        let isUnlimited = "1" === localStorage.getItem(DEV_FLAG_KEY);
-        if (!isUnlimited) {
-            let usage = loadUsage();
-            if (usage.count >= usage.limit) {
+    }), sendBtn.onclick = async function() {
+        let e = inputArea.value.trim();
+        if (!e) return;
+        let t = "1" === localStorage.getItem(DEV_FLAG_KEY);
+        if (!t) {
+            let n = loadUsage();
+            if (n.count >= n.limit) {
                 showStatus("تم تجاوز الحد اليومي للرسائل");
-                return;
+                return
             }
         }
+        createUserMessage(e), inputArea.value = "", inputArea.style.height = "auto", charsUI.textContent = `0 أحرف`;
+        let s = createAiPlaceholder();
+        messagesContainer.scrollTop = messagesContainer.scrollHeight, saveHistory(), await sendMessage(e, s)
+    }, restoreHistory(), refreshUsageUI();
+    let headerClickCount = 0,
+        headerClickTimer = null;
 
-        createUserMessage(message);
-        inputArea.value = "";
-        inputArea.style.height = "auto";
-        charsUI.textContent = `0 أحرف`;
-
-        let aiPlaceholder = createAiPlaceholder();
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        saveHistory();
-        await sendMessage(message, aiPlaceholder);
-    };
-
-    // Initialize
-    restoreHistory();
-    refreshUsageUI();
-
-    let headerClickCount = 0;
-    let headerClickTimer = null;
-
-    function modweebTrackEvent(event, params) {
-        window.gtag && gtag("event", event, params || {});
+    function modweebTrackEvent(e, t) {
+        window.gtag && gtag("event", e, t || {})
     }
 
     function adjustForKeyboard() {
-        let viewportHeight = window.visualViewport.height;
-        let windowHeight = window.innerHeight;
-        if (windowHeight - viewportHeight > 150) {
-            container.style.bottom = "10px";
-            btn.style.bottom = "10px";
-        } else {
-            container.style.bottom = "142px";
-            btn.style.bottom = "88px";
-        }
+        let e = window.visualViewport.height,
+            t = window.innerHeight;
+        t - e > 150 ? (container.style.bottom = "10px", btn.style.bottom = "10px") : (container.style.bottom = "142px", btn.style.bottom = "88px")
     }
 
     head.addEventListener("click", function(e) {
-        headerClickCount++;
-        if (headerClickTimer) clearTimeout(headerClickTimer);
-        headerClickTimer = setTimeout(() => { headerClickCount = 0; }, 4000);
-        if (headerClickCount >= 5) {
+        if (headerClickCount++, headerClickTimer && clearTimeout(headerClickTimer), headerClickTimer = setTimeout(() => {
+                headerClickCount = 0
+            }, 4e3), headerClickCount >= 5) {
             headerClickCount = 0;
-            let isUnlimited = "1" === localStorage.getItem(DEV_FLAG_KEY);
-            if (isUnlimited) {
-                localStorage.removeItem(DEV_FLAG_KEY);
-                showStatus("وضع المطور معطل");
-            } else {
-                localStorage.setItem(DEV_FLAG_KEY, "1");
-                showStatus("وضع المطور مفعل: غير محدود");
-            }
-            refreshUsageUI();
+            let t = "1" === localStorage.getItem(DEV_FLAG_KEY);
+            t ? (localStorage.removeItem(DEV_FLAG_KEY), showStatus("وضع المطور معطل")) : (localStorage.setItem(DEV_FLAG_KEY, "1"), showStatus("وضع المطور مفعل: غير محدود")), refreshUsageUI()
         }
+    }), messagesContainer.style.minHeight = "60px", window.visualViewport.addEventListener("resize", adjustForKeyboard), window.visualViewport.addEventListener("scroll", adjustForKeyboard), document.addEventListener("click", function(e) {
+        "flex" !== container.style.display || container.contains(e.target) || btn.contains(e.target) || (container.style.display = "none")
     });
-
-    messagesContainer.style.minHeight = "60px";
-    window.visualViewport.addEventListener("resize", adjustForKeyboard);
-    window.visualViewport.addEventListener("scroll", adjustForKeyboard);
 }
+
